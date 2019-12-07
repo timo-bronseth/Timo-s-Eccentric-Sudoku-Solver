@@ -12,6 +12,7 @@ import time
 # TODO: Exception handling.
 # TODO: Raise exceptions, 'finally' end with an animation of
 #       the window turning red and flickering until it's dead.
+# TODO: Do green tile animation for "RUN" button as well
 
 manual_inserts = []  # Saving snapshots before brute force inserts, so can backtrack to them if need.
 board_snapshots = []

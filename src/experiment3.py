@@ -1,12 +1,11 @@
-# -------------------------------------------------
-# Timo's wonderfwl multi-line code commenting area!
-#                              C
-# muuullttiiii                      O  O
-#                  liiiiiineeee            L  !
+
+# -------------------------------------------------------------------------------------
+# This is from GUI
+# -------------------------------------------------------------------------------------
 # -------------------------------------------------
 from tkinter.scrolledtext import *
 from tkinter import *
-from SudokuSolver import *
+from SudokuBoards import *
 
 # Global variables
 working_board = []  # This one is used by the algorithms.
@@ -75,6 +74,14 @@ def flash_labels(ms):
     for i in range(len(labels)):
         window.after(0, recolour, i, "black")
         window.after(ms, recolour, i, "white")
+
+
+# output_board takes all the values from working_board,
+# which will immediately be displayed in the tkinter window.
+def update_output_board(working_board, output_board):
+    for i, cell in enumerate(working_board):
+        output_board[i].set(working_board[i])
+    return working_board, output_board
 
 
 # Run this upon user clicking "ENTER"
