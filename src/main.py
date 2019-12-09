@@ -191,7 +191,7 @@ def reset_globals():
     insert_count, backtrack_count, iteration_count = 0, 0, 0
     manual_inserts.clear()
     board_snapshots.clear()
-    unresolved_cells.clear()
+    list(unresolved_cells).clear()
     flip = True
 
 
