@@ -1,40 +1,54 @@
 # -------------------------------------------------------------------------------------
-# The goal I had in mind for this code was to minimise the need for brute search.
-# For that, I use two main algorithms...
-#    1) possibility_eliminator() for solving almost all determinate puzzles quickly,
-#    2) and brute_force_insert() and brute_force_backtrack() for indeterminate puzzles
-#    where you have to try values to see if they work.
+# The goal I had in mind for this code was to minimise the need for brute force search.
+# For that, I use two main algorithms:
+#    1) "possibility_eliminator()" for solving almost all determinate puzzles quickly,
+#    2) and brute for search for indeterminate puzzles.
+#
+# Timo Brønseth, December 2019
 # -------------------------------------------------------------------------------------
 from math import floor
 from SudokuBoards import *
 from tkinter.scrolledtext import *
 from tkinter import *
-import time
 
-# TODO: Raise exceptions, 'finally' end with an animation of
-#       the window turning red and flickering until it's dead.
-
-# Global variables
-manual_inserts = []  # Saving snapshots before brute force inserts, so can backtrack to them if need.
+# GLOBAL_VARIABLES
+# Saving snapshots before brute force inserts, so can backtrack to them if need.
+manual_inserts = []
 board_snapshots = []
-insert_count = 0  # Checks how many manual inserts the solver has to make before a solution is found.
-backtrack_count = 0  # Checks how many backtracks were needed.
-flip = True
 unresolved_cells = []
+
+# Checks how many manual inserts and backtracks the solver has to make before a solution is found.
+insert_count = 0
+backtrack_count = 0
+iteration_count = 0
+
+# Flip algorithm used each iteration: brute force search and possibility_eliminator().
+flip = True
 
 
 # Run this when user clicks "ITERATE"
 def iterate_loop():
-    global flip, unresolved_cells, insert_count, backtrack_count
+    global flip, unresolved_cells, insert_count, backtrack_count, iteration_count
+
+    # Check if board is empty.
+    if len(working_board) == 0:
+        print("\nCould not iterate. Board completely empty.")
+        say("\nCould not iterate. Board completely empty.")
+        return None
 
     # Check if board is already full.
     if len([i for i in working_board if isinstance(i, int) and i > 0]) == 36:
+        print("\nCould not iterate. Board already solved.")
         say("\nCould not iterate. Board already solved.")
         return None
 
     # Prepare for iteration
-    print("\nIterating loop once.")
-    say("\n\n\n\n\nIterating loop once...\n")
+    print("\nIteration " + str(iteration_count) + ".")
+    if iteration_count > 9:
+        say("\n--------------Iteration " + str(iteration_count) + "--------------")
+    else:
+        say("\n--------------Iteration " + str(iteration_count) + "---------------")
+    iteration_count += 1
     recolour_all("white")  # Reset all cells to white, just in case they have colour.
     board_snapshot = working_board.copy()  # To compare with after, for colouring changed cells.
 
@@ -45,67 +59,85 @@ def iterate_loop():
         # If a conflict is found, it returns "conflicts".
         unresolved_cells = possibility_eliminator(working_board, output_board)
 
+        # Tell the world
+        say("\nUpdating possibility map.")
+
         # Which colour should changed cells be coloured in?
         update_colour = "green"
 
+        # Flip the flip: True = False, and False = True
+        flip = not flip
+
         # If there are 0 unresolved cells...
         if len(unresolved_cells) == 0:
-            # # Check if puzzle is wrong.
-            # if len([i for i in working_board if isinstance(i, int) and i > 0]) < 36:
-            #     say("PUZZLE IS WRONG WHAT ARE YOU FEEDING ME")
-            # initiate_traumatic_shutdown()
-
             # Telling the world
             print("\n    ___Found solution:___")
             print_board(working_board)
             print("\nNumber of manual inserts needed:", str(insert_count) + "." +
                   "\nNumber of backtracks needed:", str(backtrack_count) + ".")
-            say("\nSOLUTION FOUND." +
-                "\n\nNumber of manual inserts needed: " + str(insert_count) + "." +
-                "\nNumber of backtracks needed: " + str(backtrack_count) + ".")
+            say("\nSOLUTION FOUND.")
+            say("\nNumber of manual inserts needed: " + str(insert_count) + "." +
+                "\nNumber of backtracks needed: " + str(backtrack_count) + ".",
+                'italic')
+            say("\n----------------------------------------")
 
             # Reset global variables so that user can solve new puzzles.
             reset_globals()
 
-        # Flip the flip: True = False, and False = True
-        flip = not flip
-
     elif not flip:
         # If there were any conflicts found by possibility_eliminator()...
         if unresolved_cells == "conflicts":
-            update_colour = "red"  # Which colour should changed cells be coloured in?
+            update_colour = "red"
 
             print("\n    ___Found conflict:___")
             print_board(working_board)
             print("\nConflict found. Backtracking..." +
                   "\nBrute force insertion history (old_value, index, inserted_value):\n    ", manual_inserts)
-            say("\nCONFLICTS FOUND." +
-                "\n\nBacktracking..." +
-                "\nBrute force insertion history (old_value, index, inserted_value):\n    " + str(manual_inserts))
+            say("\nCONFLICTS FOUND.")
+            say("Backtracking..." +
+                "\nBrute force insertion history (old_value, index, inserted_value):\n    " + str(manual_inserts),
+                'italic')
             backtrack_count += 1
 
             # Colour all the cells decided during the the conflicted iteration red.
-            # TODO: Update colour red when integer removed.
-            # updated_board = [value if value in [1, 2, 3, 4, 5, 6] else '' for i, value in enumerate(updated_board)]
             colour_updated_cells(working_board.copy(), board_snapshots[-1], update_colour)
 
             brute_force_backtrack(working_board, manual_inserts, board_snapshots)
 
             # Flip the flip: True = False, and False = True
             flip = not flip
-            return  # TODO: Check this edit? Delete?
+
+            # We don't want the board to updated this iteration,
+            # so that we have time to see which digits are red.
+            return
+
+        # If the board is unsolvable...
+        elif unresolved_cells == "unsolvable":
+            update_colour = "red"
+
+            print("\nUNSOLVABLE PUZZLE.\n" +
+                  "Please feed me a proper puzzle next time.")
+            say("\nUNSOLVABLE PUZZLE.")
+            say("\nPlease feed me a proper puzzle next time.", 'italic')
+
+            # Reset global variables so that user can solve new puzzles.
+            reset_globals()
+
+            recolour_all(update_colour)
+            return None
 
         # If there are any unresolved cells, and no conflicts have been found...
         else:
-            update_colour = "yellow"  # Which colour should changed cells be coloured in?
+            update_colour = "yellow"
 
             print("\n    __Incomplete solution:__")
             print_board(working_board)
             print("\nBoard was not solved by possibility_eliminator algorithm." +
                   "\nProceeding with manually inserted value, and backtracking if that does not work.")
-            say("\nCOULD NOT RESOLVE." +
-                "\n\nBoard was not solved by possibility_eliminator algorithm." +
-                "\nProceeding with manually inserted value, and backtracking if that does not work.")
+            say("\nCOULD NOT RESOLVE.")
+            say("Board was not solved by possibility_eliminator algorithm." +
+                "\nProceeding with manually inserted value, and backtracking if that does not work.",
+                'italic')
             insert_count += 1
 
             # The following algorithm only searches through unresolved digits in unresolved cells,
@@ -125,108 +157,12 @@ def iterate_loop():
     colour_updated_cells(updated_board, board_snapshot, update_colour)
 
 
-# Run this when user clicks "RUN".
-# This will cycle through the loop until the puzzle has been solved.
-def run_loop():  # TODO: Make this have flashy animations.
-    # Check if board is already full.
-    if len([i for i in working_board if isinstance(i, int) and i > 0]) == 36:
-        say("\nCould not run. Board already solved.")
-        return None
-
-    print("\n\nRunning the solver.")
-    say("\n\nRunning the solver.")
-    recolour_all("white")  # Reset all cells to white, just in case they have colour.
-    board_snapshot = working_board.copy()  # To compare with after, for colouring changed cells.
-
-    # Run loop
-    solve_board(working_board, output_board)
-
-    # Update the window.
-    update_output_board(working_board, output_board)
-
-    # Colour all the cells that have been decided since last iteration.
-    for i, value in enumerate(working_board):
-        if working_board[i] != board_snapshot[i] and isinstance(working_board[i], int):
-            recolour(i, "green")
-
-
-# This function runs a single iteration of the solver,
-# and is called by the iterate_loop() and run_loop() functions.
-def solve_board(working_board, output_board=None):
-    # These variables need to be global because I'm using solve_board() in a
-    # loop from the GUI, and I don't want these to be reset every time I run it.
-    global insert_count, backtrack_count, flip, unresolved_cells
-
-    if flip:
-        # The following function searches through the board and, if no conflict is found,
-        # returns a list of all the cells it could not find definite solutions for,
-        # in the form of [(cell_value0, cell_index0), (cell_value1, cell_index1), ...]
-        # If a conflict is found, it returns "conflicts".
-        unresolved_cells = possibility_eliminator(working_board, output_board)
-
-        # # Check if puzzle is unsolvable.
-        # print(unresolved_cells)
-        # if unresolved_cells == "unsolvable":
-        #     initiate_traumatic_shutdown()
-
-        if len(unresolved_cells) == 0:  # If there are 0 unresolved cells...
-            # # Check if puzzle is wrong.
-            # if len([i for i in working_board if isinstance(i, int) and i > 0]) < 36:
-            #     say("PUZZLE IS WRONG WHAT ARE YOU FEEDING ME")
-            # initiate_traumatic_shutdown()
-
-            # Telling the world
-            print("\n    ___Found solution:___")
-            print_board(working_board)
-            print("\nNumber of manual inserts needed:", str(insert_count) + "." +
-                  "\nNumber of backtracks needed:", str(backtrack_count) + ".")
-            say("\nSOLUTION FOUND." +
-                "\n\nNumber of manual inserts needed: " + str(insert_count) + "." +
-                "\nNumber of backtracks needed: " + str(backtrack_count) + ".")
-
-            # Reset global variables so that user can solve new puzzles.
-            reset_globals()
-
-            # Flip the flip: True = False, and False = True
-            flip = not flip
-
-            return True
-        return False
-
-    elif not flip:
-        # If there were any conflicts found by possibility_eliminator()...
-        if unresolved_cells == "conflicts":
-            print("\n    ___Found conflict:___")
-            print_board(working_board)
-            print("\nConflict found. Backtracking..." +
-                  "\nBrute force insertion history (old_value, index, inserted_value):\n    ", manual_inserts)
-            say("\nCONFLICTS FOUND." +
-                "\n\nBacktracking..." +
-                "\nBrute force insertion history (old_value, index, inserted_value):\n    " + str(manual_inserts))
-            backtrack_count += 1
-
-            brute_force_backtrack(working_board, manual_inserts, board_snapshots)
-
-            # Flip the flip: True = False, and False = True
-            flip = not flip
-
-        # If there are any unresolved cells, and no conflicts have been found...
-        else:
-            print("\n    __Incomplete solution:__")
-            print_board(working_board)
-            print("\nBoard was not solved by possibility_eliminator algorithm." +
-                  "\nProceeding with manually inserted value, and backtracking if that does not work.")
-            say("\nCOULD NOT RESOLVE." +
-                "\n\nBoard was not solved by possibility_eliminator algorithm." +
-                "\nProceeding with manually inserted value, and backtracking if that does not work.")
-            insert_count += 1
-
-            # The following algorithm only searches through unresolved digits in unresolved cells,
-            # so there's a greatly reduced need for brute force compared to a simple brute force search.
-            brute_force_insert(working_board, unresolved_cells, manual_inserts, board_snapshots)
-
-            # Flip the flip: True = False, and False = True
-            flip = not flip
+# tkinter .after method in a loop freezes animations somehow.
+# def run_loop():
+#     while True:
+#         window.after(300)
+#         iterate_loop()
+#         i = +1
 
 
 # -------------------------------------------------------------------------------------
@@ -244,25 +180,19 @@ bottom_right = [27, 28, 29, 33, 34, 35]
 
 # Colour all the cells that have been decided since last iteration.
 def colour_updated_cells(updated_board, snapshot_board, update_colour):
-    say("\n\n\n\n NOTICE ME SENPAI \n\n\n")
-    say(str(updated_board))
-    say(str(snapshot_board))
     for i, value in enumerate(updated_board):
-        if updated_board[i] != snapshot_board[i] and isinstance(snapshot_board[i], int):
+        if updated_board[i] != snapshot_board[i] and isinstance(updated_board[i], int):
             recolour(i, update_colour)
     return
 
 
 def reset_globals():
-    global insert_count, backtrack_count, manual_inserts, board_snapshots
-    insert_count, backtrack_count = 0, 0
+    global insert_count, backtrack_count, iteration_count, manual_inserts, board_snapshots, unresolved_cells, flip
+    insert_count, backtrack_count, iteration_count = 0, 0, 0
     manual_inserts.clear()
     board_snapshots.clear()
-
-
-def initiate_traumatic_shutdown():
-    say("AAraaarahghhhh!")
-    recolour_all("red")
+    unresolved_cells.clear()
+    flip = True
 
 
 def print_board(board):
@@ -441,7 +371,7 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
             place_square(working_board, square[0], square[1])
 
         #  If conflicts have been found, then return as appropriate.
-        if conflicts and len(manual_inserts) == 0:  # TODO: How to check for unsolvable?
+        if conflicts and len(manual_inserts) == 0:
             return "unsolvable"
         elif conflicts:
             return "conflicts"
@@ -469,10 +399,11 @@ def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots)
     board_snapshots.append(board.copy())
 
     # Tell the world.
-    print("\nSetting cell at index (" + str(cell_index % 6) + ", " + str(floor(cell_index/6)) + ") to " + str(insert) +
-          ", from possible digits " + str(possibles) + ".")
-    say("\nSetting cell at index (" + str(cell_index % 6) + ", " + str(floor(cell_index/6)) + ") to " + str(insert) +
+    print(
+        "\nSetting cell at index (" + str(cell_index % 6) + ", " + str(floor(cell_index / 6)) + ") to " + str(insert) +
         ", from possible digits " + str(possibles) + ".")
+    say("\nSetting cell at index (" + str(cell_index % 6) + ", " + str(floor(cell_index / 6)) + ") to " + str(insert) +
+        ", from possible digits " + str(possibles) + ".", 'italic')
 
     # Insert the new digit into the board.
     board[cell_index] = insert
@@ -583,23 +514,33 @@ def entry_click():
     entered_board = []  # The Sudoku puzzle entered by the user. A list of strings.
     entered_board.clear()  # Clear old entry before inserting new one.
     entered_board.extend(puzzle_entry.get())
+
+    # If user entered a board not with 36 digits...
+    if len(entered_board) != 36:
+        # Correct list to 36 digits by cutting it,
+        # or adding missing 0's.
+        entered_board = entered_board[:36] + [0] * (36 - len(entered_board))
+
     format_board(entered_board)  # Updates global list working_board
     update_output_board(working_board, output_board)
-    # TODO: Exception handling
 
 
 # Clear the board. Run this when user clicks "CLEAR"
 def entry_clear():
     flash_labels(100)
+    reset_globals()
     board = [0 for i in range(0, 36)]
     format_board(board)
     update_output_board(working_board, output_board)
-    # TODO: Exception handling
+    say("-------------BOARD UPDATED--------------")
 
 
 # Display text into the textbox.
-def say(text):
-    textbox.insert(END, text + '\n')
+def say(text, style=None):
+    if style == 'italic':
+        textbox.insert(END, text + '\n', 'italic')
+    else:
+        textbox.insert(END, text + '\n')
     textbox.see(END)  # Scrolls down if text exceeds bottom of textbox.
 
 
@@ -613,34 +554,36 @@ def flicker_textbox(ms, colour):
 
 
 def set_determinate_board():
+    board = determinate_board_0
     flash_labels(100)
-    working_board.clear()
-    format_board(determinate_board_0[1])
+    entry_click()
+    format_board(board[1])
     update_output_board(working_board, output_board)
-    print("\nActive board:", determinate_board_0[0])
-    say("\nActive board: " + str(determinate_board_0[0]))
+    print("\nActive board:", board[0])
+    say("\nActive board: " + str(board[0]))
 
 
 def set_indeterminate_board():
+    board = indeterminate_board_0
     flash_labels(100)
-    working_board.clear()
-    format_board(indeterminate_board_0[1])
+    entry_click()
+    format_board(board[1])
     update_output_board(working_board, output_board)
-    print("\nActive board:", indeterminate_board_0[0])
-    say("\nActive board: " + str(indeterminate_board_0[0]))
+    print("\nActive board:", board[0])
+    say("\nActive board: " + str(board[0]))
 
 
 def set_maxent_board():
+    board = maximum_entropy_board
     flash_labels(100)
-    working_board.clear()
-    format_board(maximum_entropy_board[1])
+    entry_click()
+    format_board(board[1])
     update_output_board(working_board, output_board)
-    print("\nActive board:", maximum_entropy_board[0])
-    say("\nActive board: " + str(maximum_entropy_board[0]))
+    print("\nActive board:", board[0])
+    say("\nActive board: " + str(board[0]))
 
 
 # Loading the application...
-# This code only runs if GUI is main entry point.
 if __name__ == "__main__":
     # Tkinter app window
     window = Tk()
@@ -659,18 +602,19 @@ if __name__ == "__main__":
                             )
     button_iterate.grid(row=0, column=0, rowspan=3, padx=7, pady=2)
 
-    # Button for looping automatically.
-    button_run = Button(window,
-                        width=4,
-                        height=3,
-                        text="R\nU\nN",
-                        font=("Arial black", 8),
-                        borderwidth=3,
-                        relief=RAISED,
-                        command=run_loop
-                        # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
-                        )
-    button_run.grid(row=4, column=0, rowspan=2, padx=7, pady=2)
+    # tkinter .after method in a loop freezes animations somehow.
+    # # Button for looping automatically.
+    # button_run = Button(window,
+    #                     width=4,
+    #                     height=3,
+    #                     text="R\nU\nN",
+    #                     font=("Arial black", 8),
+    #                     borderwidth=3,
+    #                     relief=RAISED,
+    #                     command=run_loop
+    #                     # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
+    #                     )
+    # button_run.grid(row=4, column=0, rowspan=2, padx=7, pady=2)
 
     # Button to get puzzles entered by user.
     button_entry = Button(window,
@@ -729,8 +673,9 @@ if __name__ == "__main__":
                                           command=set_maxent_board)
     button_maximum_entropy_board.grid(row=10, column=1, columnspan=6, pady=5)
 
-    textbox = ScrolledText(window, width=40, height=24, wrap=WORD, fg='white', bg='black')
-    textbox.grid(row=0, column=7, rowspan=11, padx=5, sticky=N)
+    textbox = ScrolledText(window, width=40, height=28, wrap=WORD, font='Courier 10', fg='white', bg='black')
+    textbox.tag_config('italic', font='Courier 9 italic')
+    textbox.grid(row=0, column=7, rowspan=11, padx=20, sticky=N)
 
     # Frame
     # TODO: Arrange borders around square groups. Probably with tkinter.Frame?
