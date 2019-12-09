@@ -11,6 +11,8 @@ from SudokuBoards import *
 from tkinter.scrolledtext import *
 from tkinter import *
 
+# TODO: Make it be 9x9.
+
 # GLOBAL_VARIABLES
 # Saving snapshots before brute force inserts, so can backtrack to them if need.
 manual_inserts = []
@@ -37,20 +39,22 @@ def iterate_loop():
         return None
 
     # Check if board is already full.
-    if len([i for i in working_board if isinstance(i, int) and i > 0]) == 36:
+    if len([i for i in working_board if isinstance(i, int) and i > 0]) == 81:
         print("\nCould not iterate. Board already solved.")
         say("\nCould not iterate. Board already solved.")
         return None
 
     # Prepare for iteration
+    iteration_count += 1
+    recolour_all("white")  # Reset all cells to white, just in case they have colour.
+    board_snapshot = working_board.copy()  # To compare with after, for colouring changed cells.
     print("\nIteration " + str(iteration_count) + ".")
+
+    # Fit the lines properly into the textbox.
     if iteration_count > 9:
         say("\n--------------Iteration " + str(iteration_count) + "--------------")
     else:
         say("\n--------------Iteration " + str(iteration_count) + "---------------")
-    iteration_count += 1
-    recolour_all("white")  # Reset all cells to white, just in case they have colour.
-    board_snapshot = working_board.copy()  # To compare with after, for colouring changed cells.
 
     if flip:
         # The following function searches through the board and, if no conflict is found,
@@ -150,7 +154,7 @@ def iterate_loop():
     # Formatting
     # format_board(working_board)  # TODO: Make format_board() work here.
     updated_board = working_board.copy()
-    updated_board = [value if value in [1, 2, 3, 4, 5, 6] else '' for i, value in enumerate(updated_board)]
+    updated_board = [value if value in [1, 2, 3, 4, 5, 6, 7, 8, 9] else '' for i, value in enumerate(updated_board)]
     update_output_board(updated_board, output_board)
 
     # Colour all the cells that have been decided since last iteration.
@@ -169,13 +173,16 @@ def iterate_loop():
 # Sudoku Functions
 # -------------------------------------------------------------------------------------
 
-solution_set = {1, 2, 3, 4, 5, 6}  # What needs to be filled into all horizontal lines, vertical lines and squares.
-top_left = [0, 1, 2, 6, 7, 8]  # Indices of the 6 top left cells.
-top_right = [3, 4, 5, 9, 10, 11]
-left = [12, 13, 14, 18, 19, 20]
-right = [15, 16, 17, 21, 22, 23]
-bottom_left = [24, 25, 26, 30, 31, 32]
-bottom_right = [27, 28, 29, 33, 34, 35]
+solution_set = {1, 2, 3, 4, 5, 6, 7, 8, 9}  # What needs to be filled into all horizontal lines, vertical lines and squares.
+top_left = [0, 1, 2, 9, 10, 11, 18, 19, 20]  # Indices of the 9 top left cells.
+top = [3, 4, 5, 12, 13, 14, 21, 22, 23]
+top_right = [6, 7, 8, 15, 16, 17, 24, 25, 26]
+left = [27, 28, 29, 36, 37, 38, 45, 46, 47]
+middle = [30, 31, 32, 39, 40, 41, 48, 49, 50]
+right = [33, 34, 35, 42, 43, 44, 51, 52, 53]
+bottom_left = [54, 55, 56, 63, 64, 65, 72, 73, 74]
+bottom = [57, 58, 59, 66, 67, 68, 75, 76, 77]
+bottom_right = [60, 61, 62, 69, 70, 71, 78, 79, 80]
 
 
 # Colour all the cells that have been decided since last iteration.
@@ -197,7 +204,7 @@ def reset_globals():
 
 def print_board(board):
     board = ['•' if n == 0 else n for n in board]
-    for i in range(0, len(board), 6):
+    for i in range(0, len(board), 9):
         print("\t" + str(board[0 + i]) +
               "\t" + str(board[1 + i]) +
               "\t" + str(board[2 + i]) +
@@ -207,23 +214,23 @@ def print_board(board):
 
 
 def slice_row(board, index):
-    row = board[0 + 6 * index:6 + 6 * index]
+    row = board[0 + 9 * index:9 + 9 * index]
     return row
 
 
 def place_row(board, index, row):
     for i, n in enumerate(row):
-        board[i + 6 * index] = n
+        board[i + 9 * index] = n
 
 
 def slice_column(board, index):
-    column = board[index::6]
+    column = board[index::9]
     return column
 
 
 def place_column(board, index, column):
     for i, n in enumerate(column):
-        board[index + i * 6] = n
+        board[index + i * 9] = n
 
 
 def slice_square(board, index):
@@ -231,18 +238,27 @@ def slice_square(board, index):
         square = [n for i, n in enumerate(board) if i in set(top_left)]
         return square, top_left  # Returns a tuple
     elif index == 1:
+        square = [n for i, n in enumerate(board) if i in set(top)]
+        return square, top
+    elif index == 2:
         square = [n for i, n in enumerate(board) if i in set(top_right)]
         return square, top_right
-    elif index == 2:
+    elif index == 3:
         square = [n for i, n in enumerate(board) if i in set(left)]
         return square, left
-    elif index == 3:
+    elif index == 4:
+        square = [n for i, n in enumerate(board) if i in set(middle)]
+        return square, middle
+    elif index == 5:
         square = [n for i, n in enumerate(board) if i in set(right)]
         return square, right
-    elif index == 4:
+    elif index == 6:
         square = [n for i, n in enumerate(board) if i in set(bottom_left)]
         return square, bottom_left
-    elif index == 5:
+    elif index == 7:
+        square = [n for i, n in enumerate(board) if i in set(bottom)]
+        return square, bottom
+    elif index == 8:
         square = [n for i, n in enumerate(board) if i in set(bottom_right)]
         return square, bottom_right
 
@@ -335,7 +351,7 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
         # they point to the same memory locations; but when you assign a tuple pointer to another
         # tuple pointer (e.g. "tuple1 = tuple2"), they point to different memory locations.
 
-        for i in range(0, 6):  # Run the loop for every row.
+        for i in range(0, 9):  # Run the loop for every row.
 
             # Fetches the row to be analysed.
             row_values = slice_row(working_board, i)
@@ -353,7 +369,7 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
             # a digit, or a set with all the possible digits.
             place_row(working_board, i, row_values)
 
-        for i in range(0, 6):  # And then for every column.
+        for i in range(0, 9):  # And then for every column.
             column_values = slice_column(working_board, i)
 
             if compare_group(column_values) == "conflicts":
@@ -361,7 +377,7 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
 
             place_column(working_board, i, column_values)
 
-        for i in range(0, 6):  # Loop for every square group.
+        for i in range(0, 9):  # Loop for every square group.
             square = slice_square(working_board, i)
             # This returns a tuple with: (set of cell values, set of cell indices).
 
@@ -400,9 +416,9 @@ def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots)
 
     # Tell the world.
     print(
-        "\nSetting cell at index (" + str(cell_index % 6) + ", " + str(floor(cell_index / 6)) + ") to " + str(insert) +
+        "\nSetting cell at index (" + str(cell_index % 9) + ", " + str(floor(cell_index / 9)) + ") to " + str(insert) +
         ", from possible digits " + str(possibles) + ".")
-    say("\nSetting cell at index (" + str(cell_index % 6) + ", " + str(floor(cell_index / 6)) + ") to " + str(insert) +
+    say("\nSetting cell at index (" + str(cell_index % 9) + ", " + str(floor(cell_index / 9)) + ") to " + str(insert) +
         ", from possible digits " + str(possibles) + ".", 'italic')
 
     # Insert the new digit into the board.
@@ -449,8 +465,8 @@ def draw_board():
     numcells = 0  # Counter for the loop; tracks which number cell we're on (up to 36).
 
     # Draw all the cells in the 6x6 board.
-    for i in range(0, 6):
-        for j in range(0, 6):
+    for i in range(0, 9):
+        for j in range(0, 9):
             output_board.append(StringVar())
             # Values that go into the board need to be the unique StringVar data type.
             # Now, every time output_board[i] is changed (e.g. to a new digit),
@@ -485,7 +501,7 @@ def format_board(board):
 
     working_board.clear()
     working_board.extend(
-        [int(value) if value in [1, 2, 3, 4, 5, 6, '1', '2', '3', '4', '5', '6']
+        [int(value) if value in [1, 2, 3, 4, 5, 6, 7, 8, 9, '1', '2', '3', '4', '5', '6', '7', '8', '9']
          else '' for i, value in enumerate(board)])
     # Make all the zeros invisible.
 
@@ -516,10 +532,10 @@ def entry_click():
     entered_board.extend(puzzle_entry.get())
 
     # If user entered a board not with 36 digits...
-    if len(entered_board) != 36:
+    if len(entered_board) != 81:
         # Correct list to 36 digits by cutting it,
         # or adding missing 0's.
-        entered_board = entered_board[:36] + [0] * (36 - len(entered_board))
+        entered_board = entered_board[:81] + [0] * (81 - len(entered_board))
 
     format_board(entered_board)  # Updates global list working_board
     update_output_board(working_board, output_board)
@@ -529,7 +545,7 @@ def entry_click():
 def entry_clear():
     flash_labels(100)
     reset_globals()
-    board = [0 for i in range(0, 36)]
+    board = [0 for i in range(0, 81)]
     format_board(board)
     update_output_board(working_board, output_board)
     say("-------------BOARD UPDATED--------------")
@@ -624,7 +640,7 @@ if __name__ == "__main__":
                           borderwidth=2,
                           relief=RAISED,
                           command=entry_click)
-    button_entry.grid(row=7, column=2, columnspan=2, sticky=E)
+    button_entry.grid(row=8, column=2, columnspan=2, sticky=E)
     button_entry_clear = Button(window,
                                 text="CLEAR",
                                 width=7,
@@ -632,16 +648,16 @@ if __name__ == "__main__":
                                 borderwidth=2,
                                 relief=RAISED,
                                 command=entry_clear)
-    button_entry_clear.grid(row=7, column=4, columnspan=2, sticky=W)
+    button_entry_clear.grid(row=9, column=4, columnspan=2, sticky=W)
     puzzle_info = Label(window,
                         text="Enter puzzle here.\n" +
                              "(Must be a string of 36 digits, with\n" +
                              "0 for empty cells, e.g. 001402...)",
                         font=("Courier", 10),
                         width=35)
-    puzzle_info.grid(row=8, column=1, columnspan=6)
+    puzzle_info.grid(row=10, column=1, columnspan=6)
     puzzle_entry = Entry(window, font=("Courier", 10), width=35)
-    puzzle_entry.grid(row=6, column=1, columnspan=6, pady=5)
+    puzzle_entry.grid(row=9, column=1, columnspan=6, pady=5)
 
     # Button for trying determinate_board
     button_determinate_board = Button(window,
@@ -675,7 +691,7 @@ if __name__ == "__main__":
 
     textbox = ScrolledText(window, width=40, height=28, wrap=WORD, font='Courier 10', fg='white', bg='black')
     textbox.tag_config('italic', font='Courier 9 italic')
-    textbox.grid(row=0, column=7, rowspan=11, padx=20, sticky=N)
+    textbox.grid(row=0, column=10, rowspan=11, padx=20, sticky=N)
 
     # Frame
     # TODO: Arrange borders around square groups. Probably with tkinter.Frame?
