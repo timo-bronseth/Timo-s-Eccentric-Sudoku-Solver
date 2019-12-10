@@ -569,8 +569,22 @@ def check_user_input():
     global working_board
 
     for i, cell in enumerate(working_board):
-        if len(labels[i].get()) > 0:
-            working_board[i] = (int(labels[i].get()))
+        user_input = labels[i].get()
+
+        # Exception handling
+        if len(user_input) > 0 and\
+            is_int(user_input) and\
+                9 < int(user_input) < 10:
+
+            working_board[i] = user_input
+
+
+def is_int(string):
+    try:
+        int(string)
+        return True
+    except ValueError:
+        return False
 
 
 # Display text into the textbox.
