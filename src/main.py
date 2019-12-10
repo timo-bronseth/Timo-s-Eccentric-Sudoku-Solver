@@ -30,7 +30,11 @@ flip = True
 
 # Run this when user clicks "ITERATE"
 def iterate_loop():
-    global flip, unresolved_cells, insert_count, backtrack_count, iteration_count
+    global flip, unresolved_cells, insert_count, backtrack_count, iteration_count, output_board
+
+    for i, cell in enumerate(working_board):
+        if len(labels[i].get()) > 0:
+            output_board[i].set(int(labels[i].get()))
 
     # Check if board is empty.
     if len(working_board) == 0:
@@ -301,6 +305,9 @@ def find_cell_with_fewest_possibles(cells):
 def update_output_board(working_board, output_board):
     for i, cell in enumerate(working_board):
         output_board[i].set(working_board[i])
+    # for i, cell in enumerate(working_board):
+    #     if len(labels[i].get() > 0):
+    #         output_board[i].set(int(4))
     return working_board, output_board
 
 
@@ -472,15 +479,14 @@ def draw_board():
             # Now, every time output_board[i] is changed (e.g. to a new digit),
             # it immediately updates the corresponding label in the tkinter window.
 
-            labels.append(Label(window,
+            labels.append(Entry(window,
                                 textvariable=output_board[numcells],
                                 # StringVar digits need to go into 'textvariable' in order to be dynamically updatable.
                                 # Later, you update them by setting 'output_board[i].set(new_value)', and then the
                                 # labels on the window immediately changes.
 
-                                font=("Courier", 30),
+                                font=("Courier", 32),
                                 width=2,
-                                height=1,
                                 bg="white",
                                 borderwidth=1,
                                 relief="solid")
@@ -610,13 +616,13 @@ if __name__ == "__main__":
                             width=4,
                             height=7,
                             text="I\nT\nE\nR\nA\nT\nE",
-                            font=("Arial black", 8),
+                            font=("Arial black", 10),
                             borderwidth=3,
                             relief=RAISED,
                             command=iterate_loop
                             # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
                             )
-    button_iterate.grid(row=0, column=0, rowspan=3, padx=7, pady=2)
+    button_iterate.grid(row=0, column=0, rowspan=4, padx=7, pady=2)
 
     # tkinter .after method in a loop freezes animations somehow.
     # # Button for looping automatically.
@@ -636,58 +642,58 @@ if __name__ == "__main__":
     button_entry = Button(window,
                           text="ENTER",
                           width=7,
-                          font=("Arial black", 8),
+                          font=("Arial black", 10),
                           borderwidth=2,
                           relief=RAISED,
                           command=entry_click)
-    button_entry.grid(row=8, column=2, columnspan=2, sticky=E)
+    button_entry.grid(row=10, column=4, columnspan=3, sticky=E)
     button_entry_clear = Button(window,
                                 text="CLEAR",
                                 width=7,
-                                font=("Arial black", 8),
+                                font=("Arial black", 10),
                                 borderwidth=2,
                                 relief=RAISED,
                                 command=entry_clear)
-    button_entry_clear.grid(row=9, column=4, columnspan=2, sticky=W)
+    button_entry_clear.grid(row=10, column=4, columnspan=3, sticky=W)
     puzzle_info = Label(window,
                         text="Enter puzzle here.\n" +
                              "(Must be a string of 36 digits, with\n" +
                              "0 for empty cells, e.g. 001402...)",
-                        font=("Courier", 10),
+                        font=("Courier", 12),
                         width=35)
-    puzzle_info.grid(row=10, column=1, columnspan=6)
-    puzzle_entry = Entry(window, font=("Courier", 10), width=35)
-    puzzle_entry.grid(row=9, column=1, columnspan=6, pady=5)
+    puzzle_info.grid(row=11, column=1, columnspan=9, rowspan=3)
+    puzzle_entry = Entry(window, font=("Courier", 12), width=35)
+    puzzle_entry.grid(row=9, column=1, columnspan=9, pady=5)
 
     # Button for trying determinate_board
     button_determinate_board = Button(window,
                                       text="determinate board",
-                                      width=16,
-                                      font=("Arial black", 8),
+                                      width=18,
+                                      font=("Arial black", 10),
                                       borderwidth=2,
                                       relief=RAISED,
                                       command=set_determinate_board)
-    button_determinate_board.grid(row=9, column=1, columnspan=3, pady=5)
+    button_determinate_board.grid(row=9, column=9, columnspan=4, pady=10)
 
     # Button for trying indeterminate_board
     button_indeterminate_board = Button(window,
                                         text="indeterminate board",
-                                        width=16,
-                                        font=("Arial black", 8),
+                                        width=18,
+                                        font=("Arial black", 10),
                                         borderwidth=2,
                                         relief=RAISED,
                                         command=set_indeterminate_board)
-    button_indeterminate_board.grid(row=9, column=4, columnspan=3, pady=5)
+    button_indeterminate_board.grid(row=10, column=9, columnspan=4, pady=2)
 
     # Button for trying maximum_entropy_board
     button_maximum_entropy_board = Button(window,
                                           text="maximum entropy board",
-                                          width=20,
-                                          font=("Arial black", 8),
+                                          width=22,
+                                          font=("Arial black", 10),
                                           borderwidth=2,
                                           relief=RAISED,
                                           command=set_maxent_board)
-    button_maximum_entropy_board.grid(row=10, column=1, columnspan=6, pady=5)
+    button_maximum_entropy_board.grid(row=11, column=9, columnspan=6, pady=2)
 
     textbox = ScrolledText(window, width=40, height=28, wrap=WORD, font='Courier 10', fg='white', bg='black')
     textbox.tag_config('italic', font='Courier 9 italic')
