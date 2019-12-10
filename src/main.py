@@ -15,6 +15,9 @@ from tkinter import *
 # TODO: Center the digits in the cells.
 # TODO: Make borders around 9-boxes.
 # TODO: Rename "labels".
+# TODO: Remove superfluous buttons.
+# TODO: Add a "print board" button.
+# TODO: Add lots more puzzles.
 # TODO: CLEAN UP THE CODE. (e.g. use "global working_board")
 
 
@@ -38,7 +41,7 @@ def iterate_loop():
     global flip, unresolved_cells, insert_count, backtrack_count, iteration_count, output_board
 
     # Check for integers entered into cells by user.
-    check_user_input(working_board)
+    check_user_input()
 
     # Check if board is empty.
     if len(working_board) == 0:
