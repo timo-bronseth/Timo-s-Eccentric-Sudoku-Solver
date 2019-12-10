@@ -12,6 +12,11 @@ from tkinter.scrolledtext import *
 from tkinter import *
 
 # TODO: Make it be 9x9.
+# TODO: Center the digits in the cells.
+# TODO: Make borders around 9-boxes.
+# TODO: Rename "labels".
+# TODO: CLEAN UP THE CODE. (e.g. use "global working_board")
+
 
 # GLOBAL_VARIABLES
 # Saving snapshots before brute force inserts, so can backtrack to them if need.
@@ -32,9 +37,8 @@ flip = True
 def iterate_loop():
     global flip, unresolved_cells, insert_count, backtrack_count, iteration_count, output_board
 
-    for i, cell in enumerate(working_board):
-        if len(labels[i].get()) > 0:
-            output_board[i].set(int(labels[i].get()))
+    # Check for integers entered into cells by user.
+    check_user_input(working_board)
 
     # Check if board is empty.
     if len(working_board) == 0:
@@ -555,6 +559,15 @@ def entry_clear():
     format_board(board)
     update_output_board(working_board, output_board)
     say("-------------BOARD UPDATED--------------")
+
+
+# Check for integers entered into cells by user.
+def check_user_input():
+    global working_board
+
+    for i, cell in enumerate(working_board):
+        if len(labels[i].get()) > 0:
+            working_board[i] = (int(labels[i].get()))
 
 
 # Display text into the textbox.
