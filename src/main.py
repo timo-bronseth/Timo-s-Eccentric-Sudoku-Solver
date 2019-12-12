@@ -42,6 +42,7 @@ def iterate_loop():
 
     # Check for integers entered into cells by user.
     check_user_input()
+    # say("A" + str(working_board[0]))
 
     # Check if board is empty.
     if len(working_board) == 0:
@@ -72,8 +73,9 @@ def iterate_loop():
         # returns a list of all the cells it could not find definite solutions for,
         # in the form of [(cell_value0, cell_index0), (cell_value1, cell_index1), ...]
         # If a conflict is found, it returns "conflicts".
+        say("B" + str(working_board[0]))
         unresolved_cells = possibility_eliminator(working_board, output_board)
-
+        say("C" + str(working_board[0]))
         # Tell the world
         say("\nUpdating possibility map.")
 
@@ -355,9 +357,9 @@ def compare_group(group):  # A "group" is a collection of 6 items like a row, co
 # do that).
 def possibility_eliminator(working_board, output_board, slow_mode=True):
     conflicts = False
-
+    say("D" + str(working_board[0]))
     while True:
-        old_board = tuple(working_board)
+        old_board = tuple(working_board)  # TODO: Make copy()
         # I need to check if the board has changed at all since the last iteration of this while loop,
         # so I will compare old_board to the new board. But old_board needs to be stored as a tuple,
         # otherwise the function calls below would just simultaneously edit both.
@@ -399,7 +401,7 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
                 conflicts = True
 
             place_square(working_board, square[0], square[1])
-
+        say("E" + str(working_board[0]))
         #  If conflicts have been found, then return as appropriate.
         if conflicts and len(manual_inserts) == 0:
             return "unsolvable"
@@ -411,6 +413,7 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
         # (e.g. because the board clues are indeterminate).
         if tuple(working_board) == old_board:
             unresolved_cells = find_unresolved(working_board)
+
             return unresolved_cells
 
 
@@ -574,8 +577,9 @@ def check_user_input():
         # Exception handling
         if len(user_input) > 0 and\
             is_int(user_input) and\
-                9 < int(user_input) < 10:
+                0 < int(user_input) < 10:
 
+            say("ANYTHING!")
             working_board[i] = user_input
 
 
