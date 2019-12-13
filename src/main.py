@@ -572,18 +572,20 @@ def check_user_input():
         user_input = labels[i].get()
 
         # Exception handling
-        if len(user_input) > 0 and\
-            is_int(user_input) and\
-                9 < int(user_input) < 10:
+        if is_digit(user_input):
 
-            working_board[i] = user_input
+            # Update board
+            working_board[i] = "user_input"
 
 
-def is_int(string):
+def is_digit(string):
     try:
-        int(string)
+        int(string)  # This catches when input is not int convertible.
+        if 0 > int(string) > 9:
+            raise ValueError("Integer not in between 1 and 9.")
         return True
     except ValueError:
+        say("HIIIAIIAI")
         return False
 
 
