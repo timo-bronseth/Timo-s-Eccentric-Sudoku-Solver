@@ -7,9 +7,11 @@
 # Timo Brønseth, December 2019
 # -------------------------------------------------------------------------------------
 from math import floor
+from random import randint
+
 from SudokuBoards import *
-from tkinter.scrolledtext import *
-from tkinter import *
+from tkinter.scrolledtext import ScrolledText
+from tkinter import Tk, Button, Canvas, Entry, RAISED, W, E, N, WORD, StringVar, END
 
 # DONE: Make it be 9x9.
 # DONE: Center the digits in the cells.
@@ -24,6 +26,8 @@ from tkinter import *
 # TODO: Fix so user can edit board after puzzle declared solved or unsolvable.
 # TODO: Fix "unsolvable"-bug with solve_board after user edits cells.
 # TODO: Implement "Help" button to display text in console.
+# TODO: Add a "backtrack" button
+# TODO: Fix backtracking
 
 # GLOBAL_VARIABLES
 # Saving snapshots before brute force inserts, so can backtrack to them if need.
@@ -44,12 +48,12 @@ flip = True
 def iterate_algorithm():
     global flip, unresolved_cells, insert_count, backtrack_count, iteration_count, output_board
 
-    # Check for integers entered into cells by user.
-    check_user_input()
-
     # Replace board with 81 0's if board is empty.
     if len(working_board) == 0:
         working_board.extend([0 for i in range(81)])
+
+    # Check for integers entered into cells by user.
+    check_user_input()
 
     # Check if board is already full.
     if len([i for i in working_board if isinstance(i, int) and i > 0]) == 81:
@@ -64,10 +68,7 @@ def iterate_algorithm():
     print("\nIteration " + str(iteration_count) + ".")
 
     # Fit the lines properly into the textbox.
-    if iteration_count > 9:
-        say("\n--------------Iteration " + str(iteration_count) + "--------------")
-    else:
-        say("\n--------------Iteration " + str(iteration_count) + "---------------")
+    print_iteration_line(iteration_count)
 
     if flip:
         # The following function searches through the board and, if no conflict is found,
@@ -114,10 +115,12 @@ def iterate_algorithm():
                   manual_inserts)
             say("\nCONFLICTS FOUND.")
             say("Backtracking..." +
-                "\nBrute force insertion history\n(old_value, index, inserted_value):\n    ",
+                "\nBrute force insertion history\n" +
+                "\nINSERT\tINDEX\tOLD VALUE",
                 'italic')
             for insert in manual_inserts:
-                say(str(insert))
+                say(str(insert[2]) + "\t" + str(insert[1]) + "\t" + str(insert[0]))
+                # say(str(list(reversed(insert))))
             backtrack_count += 1
 
             # Colour all the cells decided during the the conflicted iteration red.
@@ -240,8 +243,8 @@ def slice_row(board, index):
 
 
 def place_row(board, index, row):
-    for i, n in enumerate(row):
-        board[i + 9 * index] = n
+    for i, value in enumerate(row):
+        board[i + 9 * index] = value
 
 
 def slice_column(board, index):
@@ -250,8 +253,8 @@ def slice_column(board, index):
 
 
 def place_column(board, index, column):
-    for i, n in enumerate(column):
-        board[index + i * 9] = n
+    for i, value in enumerate(column):
+        board[index + i * 9] = value
 
 
 def slice_square(board, index):
@@ -285,8 +288,8 @@ def slice_square(board, index):
 
 
 def place_square(board, square_values, square_indices):
-    for i, n in enumerate(square_values):
-        board[square_indices[i]] = n
+    for i, value in enumerate(square_values):
+        board[square_indices[i]] = value
 
 
 def contains_duplicates(list_):
@@ -461,13 +464,12 @@ def brute_force_backtrack(board, manual_inserts, board_snapshots):
         board[i] = board_snapshots[-1][i]
     # board = board_snapshots[-1]  # This will fail to update on the tkinter window.mainloop().
 
-    possibles = manual_inserts[-1][0]  # Gets the possible digits for the most recently edited cell.
-    cell_index = manual_inserts[-1][1]
-    failed_insert = manual_inserts[-1][2]  # Gets the digit that was tried (and failed) in the brute force search.
+    # Gets the possible digits for the most recently edited cell,
+    # and the digit that was tried (and failed) in the brute force search.
+    possibles, cell_index, failed_insert = manual_inserts[-1]
     updated_possibles = possibles - {failed_insert}
 
-    # if len(updated_possibles) == 1:  # If there's only one possible left in a cell, cast it as an integer.
-    # updated_possibles = min(updated_possibles)
+    # Update the cell with the new possibles, displacing the failed insert.
     board[cell_index] = updated_possibles
     manual_inserts.pop(-1)  # Remove the most recent addition to the brute force search history.
     board_snapshots.pop(-1)  # Remove the most recent snapshot, so that we don't return to it again.
@@ -482,6 +484,7 @@ def brute_force_backtrack(board, manual_inserts, board_snapshots):
 def generate_puzzle(num_hints):
     board = []
 
+    cell = cells[randint(0, 10)]
     # 1. Pick random cell.
     # 2. Insert random digit. hint_count +1.
     # 2.1 Check for conflicts.
@@ -509,7 +512,7 @@ heighttext = 30
 # Draw the Sudoku board onto the tk window.
 def draw_board():
     numcells = 0  # Counter for the loop; tracks which number cell we're on (up to 81).
-    grid_locations = [i for i in range(0, 12) if i % 4 != 0]  # 1, 2, 3, 5, 6, 7, ...
+    grid_locations = [i + 1 for i in range(0, 12) if i % 4 != 0]  # 2, 3, 4, 6, 7, 8, ...
 
     # Draw all the cells in the  board.
     for y_coordinate in grid_locations:
@@ -532,7 +535,7 @@ def draw_board():
                                relief='solid',
                                justify='center')
                          )
-            cells[numcells].grid(row=y_coordinate + 1, column=x_coordinate + 1)
+            cells[numcells].grid(row=y_coordinate, column=x_coordinate)
             numcells += 1
 
 
@@ -574,7 +577,7 @@ def flash_cells(ms):
 
 
 # Clear the board. Runs when user clicks "CLEAR".
-def entry_clear():
+def clear_board():
     flash_cells(50)
     reset_globals()
     board = [0 for i in range(0, 81)]
@@ -587,23 +590,32 @@ def entry_clear():
 def check_user_input():
     global working_board
 
-    for i, cell in enumerate(working_board):
-        user_input = cells[i].get()
+    for i, cell in enumerate(cells):
+        cell_value = cell.get()
 
         # Exception handling
-        if len(user_input) > 0 and\
-            is_int(user_input) and\
-                0 < int(user_input) < 10:
+        if len(cell_value) > 0 and\
+            is_int_string(cell_value) and\
+                0 < int(cell_value) < 10:
 
-            working_board[i] = int(user_input)
+            working_board[i] = int(cell_value)
 
 
-def is_int(string):
+def is_int_string(string):
     try:
         int(string)
         return True
     except ValueError:
         return False
+
+
+def print_iteration_line(count):
+    if 10 > count >= 0:
+        say("\n--------------Iteration " + str(count) + "---------------")
+    elif 99 >= count >= 10:
+        say("\n--------------Iteration " + str(count) + "--------------")
+    elif 999 >= count >= 100:
+        say("\n--------------Iteration " + str(count) + "-------------")
 
 
 # Display text into the textbox.
@@ -627,7 +639,7 @@ def flicker_textbox(ms, colour):
 def set_determinate_board():
     board = determinate_board_0
     flash_cells(100)
-    entry_clear()
+    clear_board()
     format_board(board[1])
     update_output_board(working_board, output_board)
     print("\nActive board:", board[0])
@@ -637,7 +649,7 @@ def set_determinate_board():
 def set_indeterminate_board():
     board = indeterminate_board_0
     flash_cells(100)
-    entry_clear()
+    clear_board()
     format_board(board[1])
     update_output_board(working_board, output_board)
     print("\nActive board:", board[0])
@@ -647,7 +659,7 @@ def set_indeterminate_board():
 def set_maxent_board():
     board = maximum_entropy_board
     flash_cells(100)
-    entry_clear()
+    clear_board()
     format_board(board[1])
     update_output_board(working_board, output_board)
     print("\nActive board:", board[0])
@@ -717,7 +729,7 @@ if __name__ == "__main__":
                                 font=("Arial black", 9),
                                 borderwidth=3,
                                 relief=RAISED,
-                                command=entry_clear)
+                                command=clear_board)
     button_entry_clear.grid(row=10, column=0, rowspan=3, pady=5)
 
     # Button to load a new board.

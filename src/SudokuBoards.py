@@ -1,13 +1,16 @@
 #  The following board is determinate given the starting clues (i.e. it has a single solution).
 #  This is a one-dimensional list, but I slice it up into 6-digit rows during execution.
 determinate_board_0 = ["Determinate board 0",  # Board name
-                     [0, 6, 0, 0, 0, 0,  # Row 0
-                      0, 0, 0, 6, 2, 4,  # Row 1
-                      3, 0, 4, 0, 1, 0,  # Row 2
-                      0, 0, 0, 2, 0, 0,  # Row 3
-                      0, 0, 0, 4, 5, 0,  # Row 4
-                      0, 0, 1, 0, 0, 2]  # Row 5
-                     ]  # Concatenated: 060000000624304010000200000450001002
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 0
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 1
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 2
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 3
+                      0, 0, 0, 1, 2, 3, 0, 0, 0,  # Row 4
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 5
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 6
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 7
+                      0, 0, 0, 0, 0, 0, 0, 0, 0]  # Row 8
+                     ]
 
 determinate_board_1 = ["Determinate board 1",  # Board name
                      [3, 0, 1, 0, 4, 0,
@@ -38,14 +41,17 @@ indeterminate_board_1 = ["Indeterminate board 1",
                         0, 4, 0, 3, 0, 2]
                        ]  # Concatenated: 103050050103201060060201302040040302
 
-maximum_entropy_board = ["Maximum entropy board",
-                         [0, 0, 0, 0, 0, 0,
-                          0, 0, 0, 0, 0, 0,
-                          0, 0, 0, 0, 0, 0,
-                          0, 0, 0, 0, 0, 0,
-                          0, 0, 0, 0, 0, 0,
-                          0, 0, 0, 0, 0, 0]
-                         ]  # Concatenated: 000000000000000000000000000000000000
+maximum_entropy_board = ["Maximum entropy board",  # Board name
+                     [0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 0
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 1
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 2
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 3
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 4
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 5
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 6
+                      0, 0, 0, 0, 0, 0, 0, 0, 0,  # Row 7
+                      0, 0, 0, 0, 0, 0, 0, 0, 0]  # Row 8
+                     ]
 
 determinate_boards = list()  # TODO: Call a random board from this list maybe.
 indeterminate_boards = list()
