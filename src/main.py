@@ -116,24 +116,17 @@ def iterate_algorithm():
             say("\nCONFLICTS FOUND.")
             say("Backtracking..." +
                 "\nBrute force insertion history\n" +
-                "\nINSERT\tINDEX\tOLD VALUE",
+                "\nINSERT\tINDEX\tINITIAL POSSIBILITIES",
                 'italic')
             for insert in manual_inserts:
                 say(str(insert[2]) + "\t" + str(insert[1]) + "\t" + str(insert[0]))
                 # say(str(list(reversed(insert))))
             backtrack_count += 1
 
-            # Colour all the cells decided during the the conflicted iteration red.
-            colour_updated_cells(working_board.copy(), board_snapshots[-1], update_colour)
-
             brute_force_backtrack(working_board, manual_inserts, board_snapshots)
 
             # Flip the flip: True = False, and False = True
             flip = not flip
-
-            # We don't want the board to updated this iteration,
-            # so that we have time to see which digits are red.
-            return
 
         # If the board is unsolvable...
         elif unresolved_cells == "unsolvable":
@@ -226,6 +219,7 @@ def reset_globals():
     flip = True
 
 
+# Prints the board to console (not to the window).
 def print_board(board):
     board = ['•' if n == 0 else n for n in board]
     for i in range(0, len(board), 9):
@@ -237,9 +231,9 @@ def print_board(board):
               "\t" + str(board[5 + i]))
 
 
-def slice_row(board, index):
-    row = board[0 + 9 * index:9 + 9 * index]
-    return row
+def slice_row(board, row_index):
+    row_values = board[0 + 9 * row_index:9 + 9 * row_index]
+    return row_values
 
 
 def place_row(board, index, row):
@@ -292,16 +286,24 @@ def place_square(board, square_values, square_indices):
         board[square_indices[i]] = value
 
 
-def contains_duplicates(list_):
+def find_duplicate(list_):
     set_compare = set()
     list_ = [i for i in list_ if isinstance(i, int) and i > 0]  # Only search for digit duplicates.
 
     for i in list_:
         if i in set_compare:
-            return True
+            return i
         else:
             set_compare.add(i)
-    return False
+    return None
+
+
+# Colours red the duplicates found by find_duplicates
+def colour_duplicates(duplicate, cell_indices):
+    for cell in [cells[i] for i in cell_indices]:
+        cell_value = cell.get()
+        if is_int(cell_value) and int(cell_value) == duplicate:
+            recolour(cell, "red")
 
 
 # Find any unresolved cells and store them in a list with both cell values and cell indices.
@@ -335,9 +337,10 @@ def compare_group(group):  # A "group" is a collection of 6 items like a row, co
     definite_digits_group = [i for i in group if type(i) == int]  # Digits that are already in the group.
     possible_digits_group = solution_set - set(definite_digits_group)  # Digits that still need to be placed.
 
-    if contains_duplicates(definite_digits_group):
-        # print("Group contains duplicate.")
-        return "conflicts"
+    duplicate = find_duplicate(definite_digits_group)
+
+    if duplicate is not None:
+        return duplicate
 
     for index, cell_value in enumerate(group):
         if isinstance(cell_value, int) and cell_value > 0:  # Skip analysis if cell is already set with an integer.
@@ -385,11 +388,15 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
 
             # Analyses each cell in the row, and writes in
             # a set with all the digits that do not conflict
-            # with other cells in the row.
-            # NOTE: This function returns a something other
-            # than the list it takes as an argument.
-            if compare_group(row_values) == "conflicts":
+            # with other cells in the row. Returns the duplicate
+            # digit if any are found, otherwise None.
+            duplicate = compare_group(row_values)
+
+            # Colour duplicates red, if found any.
+            if isinstance(duplicate, int):
                 conflicts = True
+                cell_indices = [j + 9 * i for j in range(9)]  # Indices of cells on current row.
+                colour_duplicates(duplicate, cell_indices)
 
             # Inserts the row back into the board.
             # Each cell in the row should now contain either
@@ -399,8 +406,12 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
         for i in range(0, 9):  # And then for every column.
             column_values = slice_column(working_board, i)
 
-            if compare_group(column_values) == "conflicts":
+            duplicate = compare_group(column_values)
+
+            if isinstance(duplicate, int):
                 conflicts = True
+                cell_indices = list(range(i, 81, 9))  # Indices of cells on current column.
+                colour_duplicates(duplicate, cell_indices)
 
             place_column(working_board, i, column_values)
 
@@ -408,8 +419,12 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
             square = slice_square(working_board, i)
             # This returns a tuple with: (set of cell values, set of cell indices).
 
-            if compare_group(square[0]) == "conflicts":
+            duplicate = compare_group(square[0])
+
+            if isinstance(duplicate, int):
                 conflicts = True
+                cell_indices = square[1]  # Indices of cells on current square.
+                colour_duplicates(duplicate, cell_indices)
 
             place_square(working_board, square[0], square[1])
 
@@ -419,13 +434,27 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
         elif conflicts:
             return "conflicts"
 
+        # Colour updated cells.
+        for i, value in enumerate(working_board):
+            if working_board[i] != old_board[i] and isinstance(working_board[i], int): # TODO: FIX THIS
+                say(str(cells[i]["bg"]))
+                say(str(type(cells[i]["bg"])))
+                recolour(cells[i], "green")
+                say("post " + str(cells[i]["bg"]))
+                say(str(type(cells[i]["bg"])))
+                say(str(cells[i]["bg"] == "red"))
+
+        for i, cell in enumerate(cells):
+            if cell["bg"] == "red":
+                say("AAAAAAAAAAAAAHHWIUHFEOFUHEIUFH OIHFEO\n\n\n\n\n\n\n\n\n")
+
         # If the board has not changed since the last iteration,
         # then either it is solved or the loop cannot solve it
         # (e.g. because the board clues are indeterminate).
         if tuple(working_board) == old_board:
             unresolved_cells = find_unresolved(working_board)
-
             return unresolved_cells
+
 
 
 def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots):
@@ -505,10 +534,12 @@ def generate_puzzle(num_hints):
 # Global variables
 working_board = []  # This one is used by the algorithms.
 output_board = []  # When cells on this board are changed, it immediately shows up in the tk app.
-cells = []  # All the cells ('cells') that need to be drawn into the tkinter window.
+cells = []  # All the cells that need to be drawn into the tkinter window.
 
 fontsize = 10
 heighttext = 30
+
+
 # Draw the Sudoku board onto the tk window.
 def draw_board():
     numcells = 0  # Counter for the loop; tracks which number cell we're on (up to 81).
@@ -594,16 +625,15 @@ def check_user_input():
         cell_value = cell.get()
 
         # Exception handling
-        if len(cell_value) > 0 and\
-            is_int_string(cell_value) and\
+        if len(cell_value) > 0 and \
+                is_int(cell_value) and \
                 0 < int(cell_value) < 10:
-
             working_board[i] = int(cell_value)
 
 
-def is_int_string(string):
+def is_int(obj):
     try:
-        int(string)
+        int(obj)
         return True
     except ValueError:
         return False
@@ -734,13 +764,13 @@ if __name__ == "__main__":
 
     # Button to load a new board.
     button_solve = Button(window,
-                                text="S\nO\nL\nV\nE",
-                                width=4,
-                                height=7,
-                                font=("Arial black", 9),
-                                borderwidth=3,
-                                relief=RAISED,
-                                command= solve_puzzle)  # lambda: say("\nThis function has not yet been implemented."))
+                          text="S\nO\nL\nV\nE",
+                          width=4,
+                          height=7,
+                          font=("Arial black", 9),
+                          borderwidth=3,
+                          relief=RAISED,
+                          command=solve_puzzle)  # lambda: say("\nThis function has not yet been implemented."))
     button_solve.grid(row=6, column=0, rowspan=3, pady=5)
 
     # Button for trying determinate_board
@@ -773,7 +803,8 @@ if __name__ == "__main__":
                                           command=set_maxent_board)
     button_maximum_entropy_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=E)
 
-    textbox = ScrolledText(window, width=40, height=heighttext, wrap=WORD, font='Courier ' + str(fontsize), fg='white', bg='black')
+    textbox = ScrolledText(window, width=40, height=heighttext, wrap=WORD, font='Courier ' + str(fontsize), fg='white',
+                           bg='black')
     textbox.tag_config('italic', font='Courier 8 italic')
     textbox.grid(row=1, column=14, rowspan=14, padx=0, sticky=N)
 
