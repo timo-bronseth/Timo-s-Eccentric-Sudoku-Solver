@@ -24,10 +24,11 @@ from tkinter import Tk, Button, Canvas, Entry, RAISED, W, E, N, WORD, StringVar,
 # DONE: Fix user insertion during non-elimination phase of "flip".
 # DONE: Fix bug where detection of unsolvable puzzle fails after refresh.
 # TODO: Fix so user can edit board after puzzle declared solved or unsolvable.
-# TODO: Fix "unsolvable"-bug with solve_board after user edits cells.
+# DONE: Fix "unsolvable"-bug with solve_board after user edits cells.
 # TODO: Implement "Help" button to display text in console.
 # TODO: Add a "backtrack" button
-# TODO: Fix backtracking
+# DONE: Fix backtracking
+# DONE: Fix colouring
 
 # GLOBAL_VARIABLES
 # Saving snapshots before brute force inserts, so can backtrack to them if need.
@@ -48,6 +49,7 @@ flip = True
 def iterate_algorithm():
     global flip, unresolved_cells, insert_count, backtrack_count, iteration_count, output_board
 
+    say("\n\n\n____SNAPSHOTS____" + str(len(board_snapshots)) + "\n\n\n")
     # Replace board with 81 0's if board is empty.
     if len(working_board) == 0:
         working_board.extend([0 for i in range(81)])
@@ -66,6 +68,7 @@ def iterate_algorithm():
     recolour_all("white")  # Reset all cells to white, just in case they have colour.
     board_snapshot = working_board.copy()  # To compare with after, for colouring changed cells.
     print("\nIteration " + str(iteration_count) + ".")
+    update_colour = None
 
     # Fit the lines properly into the textbox.
     print_iteration_line(iteration_count)
@@ -80,9 +83,6 @@ def iterate_algorithm():
 
         # Tell the world
         say("\nUpdating possibility map.")
-
-        # Which colour should changed cells be coloured in?
-        update_colour = "green"
 
         # Flip the flip: True = False, and False = True
         flip = not flip
@@ -106,7 +106,6 @@ def iterate_algorithm():
     elif not flip:
         # If there were any conflicts found by possibility_eliminator()...
         if unresolved_cells == "conflicts":
-            update_colour = "red"
 
             print("\n    ___Found conflict:___")
             print_board(working_board)
@@ -300,10 +299,9 @@ def find_duplicate(list_):
 
 # Colours red the duplicates found by find_duplicates
 def colour_duplicates(duplicate, cell_indices):
-    for cell in [cells[i] for i in cell_indices]:
-        cell_value = cell.get()
-        if is_int(cell_value) and int(cell_value) == duplicate:
-            recolour(cell, "red")
+    for i, cell_value in enumerate([working_board[i] for i in cell_indices]):
+        if isinstance(cell_value, int) and cell_value == duplicate:
+            recolour(cells[cell_indices[i]], "red")
 
 
 # Find any unresolved cells and store them in a list with both cell values and cell indices.
@@ -392,28 +390,28 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
             # digit if any are found, otherwise None.
             duplicate = compare_group(row_values)
 
+            # Inserts the row back into the board.
+            # Each cell in the row should now contain either
+            # a digit, or a set with all the possible digits.
+            place_row(working_board, i, row_values)
+
             # Colour duplicates red, if found any.
             if isinstance(duplicate, int):
                 conflicts = True
                 cell_indices = [j + 9 * i for j in range(9)]  # Indices of cells on current row.
                 colour_duplicates(duplicate, cell_indices)
 
-            # Inserts the row back into the board.
-            # Each cell in the row should now contain either
-            # a digit, or a set with all the possible digits.
-            place_row(working_board, i, row_values)
-
         for i in range(0, 9):  # And then for every column.
             column_values = slice_column(working_board, i)
 
             duplicate = compare_group(column_values)
 
+            place_column(working_board, i, column_values)
+
             if isinstance(duplicate, int):
                 conflicts = True
                 cell_indices = list(range(i, 81, 9))  # Indices of cells on current column.
                 colour_duplicates(duplicate, cell_indices)
-
-            place_column(working_board, i, column_values)
 
         for i in range(0, 9):  # Loop for every square group.
             square = slice_square(working_board, i)
@@ -421,12 +419,12 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
 
             duplicate = compare_group(square[0])
 
+            place_square(working_board, square[0], square[1])
+
             if isinstance(duplicate, int):
                 conflicts = True
                 cell_indices = square[1]  # Indices of cells on current square.
                 colour_duplicates(duplicate, cell_indices)
-
-            place_square(working_board, square[0], square[1])
 
         #  If conflicts have been found, then return as appropriate.
         if conflicts and len(manual_inserts) == 0:
@@ -436,17 +434,8 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
 
         # Colour updated cells.
         for i, value in enumerate(working_board):
-            if working_board[i] != old_board[i] and isinstance(working_board[i], int): # TODO: FIX THIS
-                say(str(cells[i]["bg"]))
-                say(str(type(cells[i]["bg"])))
+            if working_board[i] != old_board[i] and isinstance(working_board[i], int):
                 recolour(cells[i], "green")
-                say("post " + str(cells[i]["bg"]))
-                say(str(type(cells[i]["bg"])))
-                say(str(cells[i]["bg"] == "red"))
-
-        for i, cell in enumerate(cells):
-            if cell["bg"] == "red":
-                say("AAAAAAAAAAAAAHHWIUHFEOFUHEIUFH OIHFEO\n\n\n\n\n\n\n\n\n")
 
         # If the board has not changed since the last iteration,
         # then either it is solved or the loop cannot solve it
@@ -631,9 +620,9 @@ def check_user_input():
             working_board[i] = int(cell_value)
 
 
-def is_int(obj):
+def is_int(string):
     try:
-        int(obj)
+        int(string)
         return True
     except ValueError:
         return False
@@ -737,20 +726,6 @@ if __name__ == "__main__":
                             )
     button_iterate.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
 
-    # tkinter .after method in a loop freezes animations somehow.
-    # # Button for looping automatically.
-    # button_run = Button(window,
-    #                     width=4,
-    #                     height=3,
-    #                     text="R\nU\nN",
-    #                     font=("Arial black", 8),
-    #                     borderwidth=3,
-    #                     relief=RAISED,
-    #                     command=run_loop
-    #                     # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
-    #                     )
-    # button_run.grid(row=4, column=0, rowspan=2, padx=7, pady=2)
-
     # Button to clear the board.
     button_entry_clear = Button(window,
                                 text="C\nL\nE\nA\nR",
@@ -773,9 +748,35 @@ if __name__ == "__main__":
                           command=solve_puzzle)  # lambda: say("\nThis function has not yet been implemented."))
     button_solve.grid(row=6, column=0, rowspan=3, pady=5)
 
+    # Button for updating the board.
+    button_check = Button(window,
+                            width=4,
+                            height=7,
+                            text="C\nH\nE\nC\nK",
+                            font=("Arial black", 9),
+                            borderwidth=3,
+                            relief=RAISED,
+                            command=iterate_algorithm
+                            # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
+                            )
+    button_check.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
+
+    # Button for updating the board.
+    button_backtrack = Button(window,
+                            width=4,
+                            height=7,
+                            text="B\nA\nC\nK\nT\nR\nA\nC\nK",
+                            font=("Arial black", 9),
+                            borderwidth=3,
+                            relief=RAISED,
+                            command=iterate_algorithm
+                            # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
+                            )
+    button_backtrack.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
+
     # Button for trying determinate_board
     button_determinate_board = Button(window,
-                                      text="determinate board",
+                                      text="Easy Puzzle",
                                       width=17,
                                       font=("Arial black", 10),
                                       borderwidth=2,
@@ -785,7 +786,7 @@ if __name__ == "__main__":
 
     # Button for trying indeterminate_board
     button_indeterminate_board = Button(window,
-                                        text="indeterminate board",
+                                        text="Medium Puzzle",
                                         width=17,
                                         font=("Arial black", 10),
                                         borderwidth=2,
@@ -795,7 +796,7 @@ if __name__ == "__main__":
 
     # Button for trying maximum_entropy_board
     button_maximum_entropy_board = Button(window,
-                                          text="max entropy board",
+                                          text="Hard Puzzle",
                                           width=17,
                                           font=("Arial black", 10),
                                           borderwidth=2,
