@@ -750,7 +750,7 @@ def help_text():
 if __name__ == "__main__":
     # Tkinter app window
     window = Tk()
-    window.title("Timo's Eccentric Sudoku Solver!")
+    window.title("Timo's Neat Little Sudoku Solver!")
 
     line_width = 1
     line_thickness = 5
