@@ -9,9 +9,9 @@
 from math import floor
 from random import randint
 
-from SudokuBoards import *
 from tkinter.scrolledtext import ScrolledText
-from tkinter import Tk, Button, Canvas, Entry, RAISED, W, E, N, WORD, StringVar, END
+from tkinter import Tk, Button, Canvas, Entry, Label
+from tkinter import RAISED, W, E, N, NW, WORD, StringVar, END
 
 # DONE: Make it be 9x9.
 # DONE: Center the digits in the cells.
@@ -19,16 +19,15 @@ from tkinter import Tk, Button, Canvas, Entry, RAISED, W, E, N, WORD, StringVar,
 # DONE: Rename "labels".
 # DONE: Remove superfluous buttons.
 # DONE: Fix the "SOLVE" button.
-# TODO: Write a "generate_puzzle" function.
-# TODO: CLEAN UP YOUR UTTERLY ABHORRENT CODE.
 # DONE: Fix user insertion during non-elimination phase of "flip".
 # DONE: Fix bug where detection of unsolvable puzzle fails after refresh.
-# TODO: Fix so user can edit board after puzzle declared solved or unsolvable.
 # DONE: Fix "unsolvable"-bug with solve_board after user edits cells.
-# TODO: Implement "Help" button to display text in console.
-# TODO: Add a "backtrack" button
 # DONE: Fix backtracking
 # DONE: Fix colouring
+# DONE: Implement "Help" button to display text in console.
+# TODO: Fix so user can edit board after puzzle declared solved or unsolvable.
+# TODO: Write a "generate_puzzle" function.
+# TODO: CLEAN UP YOUR UTTERLY ABHORRENT CODE.
 
 # GLOBAL_VARIABLES
 # Saving snapshots before brute force inserts, so can backtrack to them if need.
@@ -49,7 +48,6 @@ flip = True
 def iterate_algorithm():
     global flip, unresolved_cells, insert_count, backtrack_count, iteration_count, output_board
 
-    say("\n\n\n____SNAPSHOTS____" + str(len(board_snapshots)) + "\n\n\n")
     # Replace board with 81 0's if board is empty.
     if len(working_board) == 0:
         working_board.extend([0 for i in range(81)])
@@ -129,17 +127,13 @@ def iterate_algorithm():
 
         # If the board is unsolvable...
         elif unresolved_cells == "unsolvable":
-            update_colour = "red"
 
             print("\nUNSOLVABLE PUZZLE.\n" +
                   "Please feed me a proper puzzle next time.")
             say("\nUNSOLVABLE PUZZLE.")
             say("\nPlease feed me a proper puzzle next time.", 'italic')
 
-            # Reset global variables so that user can solve new puzzles.
-            reset_globals()
-
-            recolour_all(update_colour)
+            recolour_all("red")
             return True
 
         # If there are any unresolved cells, and no conflicts have been found...
@@ -164,7 +158,7 @@ def iterate_algorithm():
             flip = not flip
 
     # Formatting
-    # format_board(working_board)  # TODO: Make format_board() work here.
+    # format_board(working_board)  # TODO: Make format_board() work here. Ugly code.
     updated_board = working_board.copy()
     updated_board = [value if value in [1, 2, 3, 4, 5, 6, 7, 8, 9]
                      else '' for i, value in enumerate(updated_board)]
@@ -181,6 +175,71 @@ def solve_puzzle():
         window.after(0)  # Increase this to make animation slower.
         window.update()
         solved = iterate_algorithm()  # Returns True if solved or unsolvable.
+
+
+def check_board():
+    # Replace board with 81 0's if board is empty.
+    if len(working_board) == 0:
+        working_board.extend([0 for i in range(81)])
+
+    # Check for integers entered into cells by user.
+    check_user_input()
+
+    conflicts = False
+
+    # Run the loop for every row.
+    for i in range(0, 9):
+
+        # Fetches the row to be analysed.
+        row_values = slice_row(working_board, i)
+
+        # Analyses each cell in the row, and writes in
+        # a set with all the digits that do not conflict
+        # with other cells in the row. Returns the duplicate
+        # digit if any are found, otherwise None.
+        duplicate = compare_group(row_values)
+
+        # Colour duplicates red, if found any.
+        if isinstance(duplicate, int):
+            conflicts = True
+            cell_indices = [j + 9 * i for j in range(9)]  # Indices of cells on current row.
+            colour_duplicates(duplicate, cell_indices)
+            print(duplicate)
+
+    # And then for every column.
+    for i in range(0, 9):
+        column_values = slice_column(working_board, i)
+
+        duplicate = compare_group(column_values)
+
+        if isinstance(duplicate, int):
+            conflicts = True
+            cell_indices = list(range(i, 81, 9))  # Indices of cells on current column.
+            colour_duplicates(duplicate, cell_indices)
+
+    # Loop for every square group.
+    for i in range(0, 9):
+        square = slice_square(working_board, i)
+        # This returns a tuple with: (set of cell values, set of cell indices).
+
+        duplicate = compare_group(square[0])
+
+        if isinstance(duplicate, int):
+            conflicts = True
+            cell_indices = square[1]  # Indices of cells on current square.
+            colour_duplicates(duplicate, cell_indices)
+
+    say("\nChecking board...")
+    window.update()
+    window.after(500)
+
+    if conflicts:
+        # Wait for one second before refreshing screen again.
+        say("\nConflicts found.")
+        recolour_all("white")
+
+    else:
+        say("\nNo conflicts found.")
 
 
 # -------------------------------------------------------------------------------------
@@ -445,7 +504,6 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
             return unresolved_cells
 
 
-
 def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots):
     cell_fewest_possibles = find_cell_with_fewest_possibles(unresolved_cells)  # Stored as (cell_value, cell_index)
     possibles = cell_fewest_possibles[0]  # Tuple with all the possible digits in the cell.
@@ -524,9 +582,6 @@ def generate_puzzle(num_hints):
 working_board = []  # This one is used by the algorithms.
 output_board = []  # When cells on this board are changed, it immediately shows up in the tk app.
 cells = []  # All the cells that need to be drawn into the tkinter window.
-
-fontsize = 10
-heighttext = 30
 
 
 # Draw the Sudoku board onto the tk window.
@@ -655,34 +710,40 @@ def flicker_textbox(ms, colour):
     window.after(ms + 50, textbox_bg, 'black')
 
 
-def set_determinate_board():
-    board = determinate_board_0
-    flash_cells(100)
-    clear_board()
-    format_board(board[1])
-    update_output_board(working_board, output_board)
-    print("\nActive board:", board[0])
-    say("\nActive board: " + str(board[0]))
+def help_text():
+    text = "Hello!\n\nNice of you to try my Sudoku solver!\n\n" + \
+           "This program was written by Timo Brønseth in December 2019, " \
+           "as a project for learning how to write Python (hence the bad " \
+           "code!). He did not manage to finish it before Jul, so it's " \
+           "probably going to stay incomplete.\n\n" \
+           "It currently features:\n\n" \
+           " • An algorithm for solving all possible Sudoku puzzles, " \
+           "using a combination of possibility elimination and brute " \
+           "force search when necessary (rarely).\n\n" \
+           "'ITERATE' goes through the solving algorithm one step at a" \
+           " time, and 'SOLVE' loops over it.\n\n" \
+           " • 'CHECK' searches for conflicts on the board and colours " \
+           "them red.\n\n" \
+           " • You can edit the board by inserting your own digits. (Fun " \
+           "tip: try to hit 'SOLVE' with an empty board and then edit " \
+           "the empty cells to see if you can break the algorithm!)\n\n" \
+           " • The algorithm behind the buttons to generate new puzzles " \
+           "is still under construction. Sorry for any " \
+           "inconvenience this may cause.\n\n" \
+           "GitHub link:" \
+           "https://github.com/timo-bronseth/Timo-s-Eccentric-Sudoku-Solver\n\n"
 
-
-def set_indeterminate_board():
-    board = indeterminate_board_0
-    flash_cells(100)
-    clear_board()
-    format_board(board[1])
-    update_output_board(working_board, output_board)
-    print("\nActive board:", board[0])
-    say("\nActive board: " + str(board[0]))
-
-
-def set_maxent_board():
-    board = maximum_entropy_board
-    flash_cells(100)
-    clear_board()
-    format_board(board[1])
-    update_output_board(working_board, output_board)
-    print("\nActive board:", board[0])
-    say("\nActive board: " + str(board[0]))
+    say("\n.")
+    window.update()
+    window.after(300)
+    say(".")
+    window.update()
+    window.after(300)
+    say(".\n")
+    window.update()
+    window.after(1000)
+    say(text)
+    window.update()
 
 
 # Loading the application...
@@ -707,24 +768,35 @@ if __name__ == "__main__":
     w = Canvas(window, width=0, height=0)
     w.grid(row=0, column=13, pady=line_width, padx=line_width)
 
-    # for i in range(4, 13, 4):
-    #     print(i)
-    #     w = Canvas(window, width=5, height=5)
-    #     w.grid(row=i, column=i+1)
-    #     w.create_rectangle(0, 0, 5, 5, outline="#fb0", fill="#fb0")
-
-    # Button for updating the board.
+    # Button to iterate the solving algorithm.
     button_iterate = Button(window,
-                            width=4,
-                            height=7,
-                            text="I\nT\nE\nR\nA\nT\nE",
+                            width=11,
+                            text="ITERATE",
                             font=("Arial black", 9),
                             borderwidth=3,
                             relief=RAISED,
-                            command=iterate_algorithm
-                            # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
-                            )
-    button_iterate.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
+                            command=iterate_algorithm)
+    button_iterate.grid(row=14, column=14, pady=5, sticky=W)
+
+    # Button to solve the board.
+    button_solve = Button(window,
+                          text="SOLVE",
+                          width=11,
+                          font=("Arial black", 9),
+                          borderwidth=3,
+                          relief=RAISED,
+                          command=solve_puzzle)  # lambda: say("\nThis function has not yet been implemented."))
+    button_solve.grid(row=14, column=16, pady=5, sticky=W)
+
+    # Button to display help text on console.
+    button_help_text = Button(window,
+                              width=11,
+                              text="HELP",
+                              font=("Arial black", 9),
+                              borderwidth=3,
+                              relief=RAISED,
+                              command=help_text)
+    button_help_text.grid(row=14, column=17, pady=5)
 
     # Button to clear the board.
     button_entry_clear = Button(window,
@@ -737,80 +809,77 @@ if __name__ == "__main__":
                                 command=clear_board)
     button_entry_clear.grid(row=10, column=0, rowspan=3, pady=5)
 
-    # Button to load a new board.
-    button_solve = Button(window,
-                          text="S\nO\nL\nV\nE",
+    # Green the AI in Czech
+    button_czech = Button(window,
                           width=4,
                           height=7,
+                          text="C\nZ\nE\nC\nH",
                           font=("Arial black", 9),
                           borderwidth=3,
                           relief=RAISED,
-                          command=solve_puzzle)  # lambda: say("\nThis function has not yet been implemented."))
-    button_solve.grid(row=6, column=0, rowspan=3, pady=5)
+                          command=lambda: say("\nahoj světe!"))
+    # 'lambda' should really be called 'make-function'.
+    button_czech.grid(row=6, column=0, rowspan=3, padx=7, pady=2)
 
-    # Button for updating the board.
-    button_check = Button(window,
-                            width=4,
-                            height=7,
-                            text="C\nH\nE\nC\nK",
-                            font=("Arial black", 9),
-                            borderwidth=3,
-                            relief=RAISED,
-                            command=iterate_algorithm
-                            # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
-                            )
-    button_check.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
-
-    # Button for updating the board.
-    button_backtrack = Button(window,
-                            width=4,
-                            height=7,
-                            text="B\nA\nC\nK\nT\nR\nA\nC\nK",
-                            font=("Arial black", 9),
-                            borderwidth=3,
-                            relief=RAISED,
-                            command=iterate_algorithm
-                            # command=lambda: update_board(board)  # Command cannot take arguments unless it uses "lambda"
-                            )
-    button_backtrack.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
+    # Check for conflicts and colour them red.
+    button_check_board = Button(window,
+                                width=4,
+                                height=7,
+                                text="C\nH\nE\nC\nK",
+                                font=("Arial black", 9),
+                                borderwidth=3,
+                                relief=RAISED,
+                                command=check_board)
+    button_check_board.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
 
     # Button for trying determinate_board
-    button_determinate_board = Button(window,
-                                      text="Easy Puzzle",
-                                      width=17,
-                                      font=("Arial black", 10),
-                                      borderwidth=2,
-                                      relief=RAISED,
-                                      command=set_determinate_board)
-    button_determinate_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=W)
+    button_easy_board = Button(window,
+                               text="Easy Puzzle",
+                               width=17,
+                               font=("Arial black", 10),
+                               borderwidth=2,
+                               relief=RAISED,
+                               command=lambda: say("\nThis functionality has not been implemented yet."))
+    button_easy_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=W)
 
     # Button for trying indeterminate_board
-    button_indeterminate_board = Button(window,
-                                        text="Medium Puzzle",
-                                        width=17,
-                                        font=("Arial black", 10),
-                                        borderwidth=2,
-                                        relief=RAISED,
-                                        command=set_indeterminate_board)
-    button_indeterminate_board.grid(row=13, column=1, columnspan=12, pady=5)
+    button_medium_board = Button(window,
+                                 text="Medium Puzzle",
+                                 width=17,
+                                 font=("Arial black", 10),
+                                 borderwidth=2,
+                                 relief=RAISED,
+                                 command=lambda: say("\nThis functionality has not been implemented yet."))
+    button_medium_board.grid(row=13, column=1, columnspan=12, pady=5)
 
     # Button for trying maximum_entropy_board
-    button_maximum_entropy_board = Button(window,
-                                          text="Hard Puzzle",
-                                          width=17,
-                                          font=("Arial black", 10),
-                                          borderwidth=2,
-                                          relief=RAISED,
-                                          command=set_maxent_board)
-    button_maximum_entropy_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=E)
+    button_hard_board = Button(window,
+                               text="Hard Puzzle",
+                               width=17,
+                               font=("Arial black", 10),
+                               borderwidth=2,
+                               relief=RAISED,
+                               command=lambda: say("\nThis functionality has not been implemented yet."))
+    button_hard_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=E)
 
-    textbox = ScrolledText(window, width=40, height=heighttext, wrap=WORD, font='Courier ' + str(fontsize), fg='white',
+    # Infobox
+    info = "These buttons generate random boards with 17, 23 or 29 hints.\n" + \
+           "Timo Brønseth, December 2019."
+    infobox = Label(window,
+                    text=info,
+                    font='Courier 10 italic')
+    infobox.grid(row=14, column=2, columnspan=13, sticky=NW)
+
+    #  Console
+    textbox = ScrolledText(window,
+                           width=40,
+                           height=30,
+                           wrap=WORD,
+                           font='Courier 10',
+                           fg='white',
                            bg='black')
-    textbox.tag_config('italic', font='Courier 8 italic')
-    textbox.grid(row=1, column=14, rowspan=14, padx=0, sticky=N)
-
-    # Frame
-    # TODO: Arrange borders around square groups. Probably with tkinter.Frame?
+    textbox.tag_config('italic', font='Courier 8 italic')  # Defining 'italic' option
+    textbox.grid(row=1, column=14, columnspan=6, rowspan=14, padx=0, sticky=N)
 
     # Display the app
     draw_board()
@@ -819,6 +888,6 @@ if __name__ == "__main__":
     flicker_textbox(900, 'grey')
     flicker_textbox(1000, 'grey')
     window.after(1000, say, "Initialising speech module...")
-    window.after(2200, say, "\nhello world")
+    window.after(2000, say, "\nhello world")
 
     window.mainloop()
