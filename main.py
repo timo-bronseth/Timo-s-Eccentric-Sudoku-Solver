@@ -4,7 +4,7 @@
 #    1) "possibility_eliminator()" for solving almost all determinate puzzles quickly,
 #    2) and brute for search for indeterminate puzzles.
 #
-# I made this while learning Python from scratch, which is evident from my utterly
+# I made this while learning Python fromdsf scratch, which is evident from my utterly
 # abhorrent code. I haven't had time to tidy up in it yet, and due to Yule vacation
 # approaching, I didn't have time to code the last bits proper either. But it works!
 #
