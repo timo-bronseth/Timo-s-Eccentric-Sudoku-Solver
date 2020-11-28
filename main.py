@@ -2,16 +2,16 @@
 # The goal I had in mind for this code was to minimise the need for brute force search.
 # For that, I use two main algorithms:
 #    1) "possibility_eliminator()" for solving almost all determinate puzzles quickly,
-#    2) and brute for search for indeterminate puzzles.
+#    2) and brute search for indeterminate puzzles.
 #
-# I made this while learning Python fromdsf scratch, which is evident from my utterly
-# abhorrent code. I haven't had time to tidy up in it yet, and due to Yule vacation
+# I made this while learning Python from scratch, which should be evident from my utterly
+# abhorrent code. I haven't had time to tidy it up yet, and due to Yule vacation
 # approaching, I didn't have time to code the last bits proper either. But it works!
 #
 # Timo Brønseth, December 2019
 # -------------------------------------------------------------------------------------
 from math import floor
-from random import randint
+from random import randint, choice, sample
 
 from tkinter.scrolledtext import ScrolledText
 from tkinter import Tk, Button, Canvas, Entry, Label
@@ -29,8 +29,14 @@ from tkinter import RAISED, W, E, N, NW, WORD, StringVar, END
 # DONE: Fix backtracking
 # DONE: Fix colouring
 # DONE: Implement "Help" button to display text in console.
+# DONE: Write a "generate_puzzle" function.
+# DONE: BUG - Sometimes solver runs into "EMPTY CELL POSSIBLES"
+#       where an unresolved cell has an empty set of possible digits.
+#       (See image EMPTY CELL POSSIBLES on desktop)
+# TODO: BUG - If solver finds a conflict on the iteration that fills the board
+#       completely, it interprets the board as solved, rather than backtracking
+#       find a solution without conflict. (easy)
 # TODO: Fix so user can edit board after puzzle declared solved or unsolvable.
-# TODO: Write a "generate_puzzle" function.
 # TODO: CLEAN UP YOUR UTTERLY ABHORRENT CODE.
 
 # GLOBAL_VARIABLES
@@ -156,7 +162,7 @@ def iterate_algorithm():
 
             # The following algorithm only searches through unresolved digits in unresolved cells,
             # so there's a greatly reduced need for brute force compared to a simple brute force search.
-            brute_force_insert(working_board, unresolved_cells, manual_inserts, board_snapshots)
+            brute_force_insert(working_board, unresolved_cells, manual_inserts, board_snapshots, hidden=False)
 
             # Flip the flip: True = False, and False = True
             flip = not flip
@@ -172,13 +178,64 @@ def iterate_algorithm():
     colour_updated_cells(updated_board, board_snapshot, update_colour)
 
 
-# Runs "iterate_algorithm" in a loop until solved or declared unsolvable.
-def solve_puzzle():
+# Iterates the algorithm in a loop until puzzle is solved or declared unsolvable.
+def solve_puzzle(num_givens=29, fast=False):
     solved = False
-    while not solved:
-        window.after(0)  # Increase this to make animation slower.
-        window.update()
-        solved = iterate_algorithm()  # Returns True if solved or unsolvable.
+    if fast:
+        while not solved:
+            solved = quick_iterate_algorithm(num_givens)  # Returns True if solved or proved unsolvable.
+    else:
+        while not solved:
+            # TODO: Enable user to change speed of animation via the GUI.
+            window.after(0)  # Increase this to make animation slower.
+            window.update()
+            solved = iterate_algorithm()  # Returns True if solved or proved unsolvable.
+
+
+def quick_iterate_algorithm(num_givens):
+    global flip, unresolved_cells, output_board
+
+    # Check if board is already full.
+    if len([i for i in working_board if isinstance(i, int) and i > 0]) == 81:
+        return True
+
+    if flip:
+        # The following function searches through the board and, if no conflict is found,
+        # returns a list of all the cells it could not find definite solutions for,
+        # in the form of [(cell_value0, cell_index0), (cell_value1, cell_index1), ...]
+        # If a conflict is found, it returns "conflicts".
+
+        unresolved_cells = possibility_eliminator(working_board, output_board)
+
+        # Flip the flip: True = False, and False = True
+        flip = not flip
+
+        # If there are 0 unresolved cells...
+        if len(unresolved_cells) == 0:
+            # Reset global variables so that user can solve new puzzles.
+            reset_globals()
+
+    elif not flip:
+        # If there were any conflicts found by possibility_eliminator()...
+        if unresolved_cells == "conflicts":
+            brute_force_backtrack(working_board, manual_inserts, board_snapshots)
+
+            # Flip the flip: True = False, and False = True
+            flip = not flip
+
+        # If the board is unsolvable...
+        elif unresolved_cells == "unsolvable":
+            generate_puzzle(num_givens)
+
+        # If there are any unresolved cells, and no conflicts have been found...
+        else:
+
+            # The following algorithm only searches through unresolved digits in unresolved cells,
+            # so there's a greatly reduced need for brute force compared to a simple brute force search.
+            brute_force_insert(working_board, unresolved_cells, manual_inserts, board_snapshots, hidden=True)
+
+            # Flip the flip: True = False, and False = True
+            flip = not flip
 
 
 def check_board():
@@ -201,37 +258,36 @@ def check_board():
         # a set with all the digits that do not conflict
         # with other cells in the row. Returns the duplicate
         # digit if any are found, otherwise None.
-        duplicate = compare_group(row_values)
+        conflict = compare_group(row_values)
 
         # Colour duplicates red, if found any.
-        if isinstance(duplicate, int):
+        if isinstance(conflict, int) or conflict == set():
             conflicts = True
             cell_indices = [j + 9 * i for j in range(9)]  # Indices of cells on current row.
-            colour_duplicates(duplicate, cell_indices)
-            print(duplicate)
+            colour_conflicts(conflict, cell_indices)
 
     # And then for every column.
     for i in range(0, 9):
         column_values = slice_column(working_board, i)
 
-        duplicate = compare_group(column_values)
+        conflict = compare_group(column_values)
 
-        if isinstance(duplicate, int):
+        if isinstance(conflict, int) or conflict == set():
             conflicts = True
             cell_indices = list(range(i, 81, 9))  # Indices of cells on current column.
-            colour_duplicates(duplicate, cell_indices)
+            colour_conflicts(conflict, cell_indices)
 
     # Loop for every square group.
     for i in range(0, 9):
         square = slice_square(working_board, i)
         # This returns a tuple with: (set of cell values, set of cell indices).
 
-        duplicate = compare_group(square[0])
+        conflict = compare_group(square[0])
 
-        if isinstance(duplicate, int):
+        if isinstance(conflict, int) or conflict == set():
             conflicts = True
             cell_indices = square[1]  # Indices of cells on current square.
-            colour_duplicates(duplicate, cell_indices)
+            colour_conflicts(conflict, cell_indices)
 
     say("\nChecking board...")
     window.update()
@@ -360,10 +416,12 @@ def find_duplicate(list_):
     return None
 
 
-# Colours red the duplicates found by find_duplicates
-def colour_duplicates(duplicate, cell_indices):
+# Colours the duplicates or the empty sets red.
+def colour_conflicts(conflict, cell_indices):
     for i, cell_value in enumerate([working_board[i] for i in cell_indices]):
-        if isinstance(cell_value, int) and cell_value == duplicate:
+        if isinstance(cell_value, int) and cell_value == conflict:
+            recolour(cells[cell_indices[i]], "red")
+        if cell_value == set():
             recolour(cells[cell_indices[i]], "red")
 
 
@@ -398,10 +456,16 @@ def compare_group(group):  # A "group" is a collection of 6 items like a row, co
     definite_digits_group = [i for i in group if type(i) == int]  # Digits that are already in the group.
     possible_digits_group = solution_set - set(definite_digits_group)  # Digits that still need to be placed.
 
+    # If duplicate is found, return it
     duplicate = find_duplicate(definite_digits_group)
-
     if duplicate is not None:
         return duplicate
+
+    # If a cell contains an empty set, it means there are no possible
+    # values for it, hence need to backtrack or declare puzzle unsolvable
+    for value in group:
+        if value == set():
+            return set()
 
     for index, cell_value in enumerate(group):
         if isinstance(cell_value, int) and cell_value > 0:  # Skip analysis if cell is already set with an integer.
@@ -450,47 +514,49 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
             # Analyses each cell in the row, and writes in
             # a set with all the digits that do not conflict
             # with other cells in the row. Returns the duplicate
-            # digit if any are found, otherwise None.
-            duplicate = compare_group(row_values)
+            # digit if any are found, or an empty set if one is found,
+            # otherwise it returns None.
+            conflict = compare_group(row_values)
 
             # Inserts the row back into the board.
             # Each cell in the row should now contain either
             # a digit, or a set with all the possible digits.
             place_row(working_board, i, row_values)
 
-            # Colour duplicates red, if found any.
-            if isinstance(duplicate, int):
+            # Colour conflicts red, if found any
+            if isinstance(conflict, int) or conflict == set():
                 conflicts = True
                 cell_indices = [j + 9 * i for j in range(9)]  # Indices of cells on current row.
-                colour_duplicates(duplicate, cell_indices)
+                colour_conflicts(conflict, cell_indices)
 
         for i in range(0, 9):  # And then for every column.
             column_values = slice_column(working_board, i)
 
-            duplicate = compare_group(column_values)
+            conflict = compare_group(column_values)
 
             place_column(working_board, i, column_values)
 
-            if isinstance(duplicate, int):
+            if isinstance(conflict, int):
                 conflicts = True
                 cell_indices = list(range(i, 81, 9))  # Indices of cells on current column.
-                colour_duplicates(duplicate, cell_indices)
+                colour_conflicts(conflict, cell_indices)
 
         for i in range(0, 9):  # Loop for every square group.
             square = slice_square(working_board, i)
             # This returns a tuple with: (set of cell values, set of cell indices).
 
-            duplicate = compare_group(square[0])
+            conflict = compare_group(square[0])
 
             place_square(working_board, square[0], square[1])
 
-            if isinstance(duplicate, int):
+            if isinstance(conflict, int):
                 conflicts = True
                 cell_indices = square[1]  # Indices of cells on current square.
-                colour_duplicates(duplicate, cell_indices)
+                colour_conflicts(conflict, cell_indices)
 
         #  If conflicts have been found, then return as appropriate.
         if conflicts and len(manual_inserts) == 0:
+            print("UNSOLVABLE!")
             return "unsolvable"
         elif conflicts:
             return "conflicts"
@@ -501,18 +567,17 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
                 recolour(cells[i], "green")
 
         # If the board has not changed since the last iteration,
-        # then either it is solved or the loop cannot solve it
-        # (e.g. because the board clues are indeterminate).
+        # then either it is solved or the loop cannot solve it.
         if tuple(working_board) == old_board:
             unresolved_cells = find_unresolved(working_board)
             return unresolved_cells
 
 
-def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots):
+def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots, hidden):
     cell_fewest_possibles = find_cell_with_fewest_possibles(unresolved_cells)  # Stored as (cell_value, cell_index)
     possibles = cell_fewest_possibles[0]  # Tuple with all the possible digits in the cell.
-    insert = min(possibles)  # The smallest digit out of the ones possible.
     cell_index = cell_fewest_possibles[1]
+    insert = min(possibles)  # The smallest digit out of the ones possible.
 
     # Storing information about which inserted digits have been tried,
     # so that we can remove them from the list of digits left to try.
@@ -523,11 +588,12 @@ def brute_force_insert(board, unresolved_cells, manual_inserts, board_snapshots)
     board_snapshots.append(board.copy())
 
     # Tell the world.
-    print(
-        "\nSetting cell at index (" + str(cell_index % 9) + ", " + str(floor(cell_index / 9)) + ") to " + str(insert) +
-        ", from possible digits " + str(possibles) + ".")
-    say("\nSetting cell at index (" + str(cell_index % 9) + ", " + str(floor(cell_index / 9)) + ") to " + str(insert) +
-        ", from possible digits " + str(possibles) + ".", 'italic')
+    if not hidden:
+        print(
+            "\nSetting cell at index (" + str(cell_index % 9) + ", " + str(floor(cell_index / 9)) + ") to " + str(insert) +
+            ", from possible digits " + str(possibles) + ".")
+        say("\nSetting cell at index (" + str(cell_index % 9) + ", " + str(floor(cell_index / 9)) + ") to " + str(insert) +
+            ", from possible digits " + str(possibles) + ".", 'italic')
 
     # Insert the new digit into the board.
     board[cell_index] = insert
@@ -559,22 +625,59 @@ def brute_force_backtrack(board, manual_inserts, board_snapshots):
 # -------------------------------------------------------------------------------------
 # Generate puzzles
 # -------------------------------------------------------------------------------------
+def generate_puzzle(num_givens: int):
+    global working_board, output_board, cells
 
+    # TODO: Hide the board from user while it is generating a puzzle.
 
-def generate_puzzle(num_hints):
-    board = []
+    # Check if num_givens falls inside valid range, and raise ValueError if not
+    # valid_num_givens = range(8, 81)
+    # if num_givens not in valid_num_givens:
+    #     raise ValueError("num_givens was outside the range of valid_num_givens")
 
-    cell = cells[randint(0, 10)]
-    # 1. Pick random cell.
-    # 2. Insert random digit. hint_count +1.
-    # 2.1 Check for conflicts.
-    # 2.1.1. If conflict, del and back to 1. hint_count -1.
-    # 3. If hint_count != num_hints, go to 1.
-    # 4. Try solve_board.
-    # 4.1. If unsolvable, del all and back to 1. hint_count = 0.
-    # 5. return board.
+    # Clear board
+    clear_board()
 
-    return board
+    # Insert digits 1 to 9 randomly across the board
+    digits = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    for i in range(0, 9):
+
+        # Pick a random digit between 0 and 10, without replacement
+        digit = choice(digits)
+        digits.remove(digit)
+
+        # Pick a random cell on the board
+        # (One random cell for each row, to ensure
+        # selections don't overlap.)
+        cell = randint(0, 8)+9*i
+
+        # Insert digit into that cell
+        working_board[cell] = digit
+
+    # complete the board quickly, without updating GUI
+    solve_puzzle(num_givens, fast=True)
+
+    # # remove 81-num_givens number of digits in random cells
+    indices = list(range(0, 81))
+    for i in range(0, 81-num_givens):
+
+        # Pick a random cell from the set of all 81 indices,
+        # and then remove the cell reference from the set.
+        # Set the chosen cell to empty. Repeat 81-num_givens times.
+        digit = choice(indices)
+        indices.remove(digit)
+        working_board[digit] = 0
+
+    # Formatting
+    updated_board = working_board.copy()
+    updated_board = [value if value in [1, 2, 3, 4, 5, 6, 7, 8, 9]
+                     else '' for i, value in enumerate(updated_board)]
+    update_output_board(updated_board, output_board)
+
+    # Announce new puzzle
+    say("Puzzle generated with {} givens.".format(num_givens))
+
+    return
 
 
 # -------------------------------------------------------------------------------------
@@ -789,7 +892,7 @@ if __name__ == "__main__":
                           font=("Arial black", 9),
                           borderwidth=3,
                           relief=RAISED,
-                          command=solve_puzzle)  # lambda: say("\nThis function has not yet been implemented."))
+                          command=solve_puzzle)
     button_solve.grid(row=14, column=16, pady=5, sticky=W)
 
     # Button to display help text on console.
@@ -843,7 +946,11 @@ if __name__ == "__main__":
                                font=("Arial black", 10),
                                borderwidth=2,
                                relief=RAISED,
-                               command=lambda: say("\nThis functionality has not been implemented yet."))
+                               #command=lambda: say("\nThis functionality has not been implemented yet."))
+                               command=lambda: generate_puzzle(29)) # 29 givens for easy puzzle.
+                                # If I just write "command=generate_puzzle(29)" here, it runs when first
+                                # opening the program. If I wrap it in a lambda expression, it only runs
+                                # when I click the button.
     button_easy_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=W)
 
     # Button for trying indeterminate_board
@@ -853,7 +960,7 @@ if __name__ == "__main__":
                                  font=("Arial black", 10),
                                  borderwidth=2,
                                  relief=RAISED,
-                                 command=lambda: say("\nThis functionality has not been implemented yet."))
+                                 command=lambda: generate_puzzle(23))
     button_medium_board.grid(row=13, column=1, columnspan=12, pady=5)
 
     # Button for trying maximum_entropy_board
@@ -863,11 +970,11 @@ if __name__ == "__main__":
                                font=("Arial black", 10),
                                borderwidth=2,
                                relief=RAISED,
-                               command=lambda: say("\nThis functionality has not been implemented yet."))
+                               command=lambda: generate_puzzle(17))
     button_hard_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=E)
 
     # Infobox
-    info = "These buttons generate random boards with 17, 23 or 29 hints.\n" + \
+    info = "These buttons generate random boards with 17, 23 or 29 givens.\n" + \
            "Timo Brønseth, December 2019."
     infobox = Label(window,
                     text=info,
