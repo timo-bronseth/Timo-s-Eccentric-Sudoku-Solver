@@ -33,10 +33,12 @@ from tkinter import RAISED, W, E, N, NW, WORD, StringVar, END
 # DONE: BUG - Sometimes solver runs into "EMPTY CELL POSSIBLES"
 #       where an unresolved cell has an empty set of possible digits.
 #       (See image EMPTY CELL POSSIBLES on desktop)
-# TODO: BUG - If solver finds a conflict on the iteration that fills the board
+# DONE: BUG - If solver finds a conflict on the iteration that fills the board
 #       completely, it interprets the board as solved, rather than backtracking
 #       find a solution without conflict. (easy)
-# TODO: Fix so user can edit board after puzzle declared solved or unsolvable.
+# TODO: Allow user to change animation speed via the GUI.
+# TODO: Allow user to return to last generated puzzle at any time.
+# TODO: Allow user to SAVE board.
 # TODO: CLEAN UP YOUR UTTERLY ABHORRENT CODE.
 
 # GLOBAL_VARIABLES
@@ -66,10 +68,10 @@ def iterate_algorithm():
     check_user_input()
 
     # Check if board is already full.
-    if len([i for i in working_board if isinstance(i, int) and i > 0]) == 81:
-        print("\nCould not iterate. Board already solved.")
-        say("\nCould not iterate. Board already solved.")
-        return True
+    # if len([i for i in working_board if isinstance(i, int) and i > 0]) == 81:
+    #     print("\nCould not iterate. Board already solved.")
+    #     say("\nCould not iterate. Board already solved.")
+    #     return True
 
     # Prepare for iteration
     iteration_count += 1
@@ -85,8 +87,9 @@ def iterate_algorithm():
         # The following function searches through the board and, if no conflict is found,
         # returns a list of all the cells it could not find definite solutions for,
         # in the form of [(cell_value0, cell_index0), (cell_value1, cell_index1), ...]
-        # If a conflict is found, it returns "conflicts".
+        # If conflicts are found, it returns "conflicts".
 
+        # If this returns an empty set, we know the puzzle has been solved.
         unresolved_cells = possibility_eliminator(working_board, output_board)
 
         # Tell the world
@@ -94,22 +97,6 @@ def iterate_algorithm():
 
         # Flip the flip: True = False, and False = True
         flip = not flip
-
-        # If there are 0 unresolved cells...
-        if len(unresolved_cells) == 0:
-            # Telling the world
-            print("\n    ___Found solution:___")
-            print_board(working_board)
-            print("\nNumber of manual inserts needed:", str(insert_count) + "." +
-                  "\nNumber of backtracks needed:", str(backtrack_count) + ".")
-            say("\nSOLUTION FOUND.")
-            say("\nNumber of manual inserts needed: " + str(insert_count) + "." +
-                "\nNumber of backtracks needed: " + str(backtrack_count) + ".",
-                'italic')
-            say("\n----------------------------------------")
-
-            # Reset global variables so that user can solve new puzzles.
-            reset_globals()
 
     elif not flip:
         # If there were any conflicts found by possibility_eliminator()...
@@ -176,6 +163,24 @@ def iterate_algorithm():
 
     # Colour all the cells that have been decided since last iteration.
     colour_updated_cells(updated_board, board_snapshot, update_colour)
+
+    # If there are 0 unresolved cells...
+    if len(unresolved_cells) == 0:
+        # Telling the world
+        print("\n    ___Found solution:___")
+        print_board(working_board)
+        print("\nNumber of manual inserts needed:", str(insert_count) + "." +
+              "\nNumber of backtracks needed:", str(backtrack_count) + ".")
+        say("\nSOLUTION FOUND.")
+        say("\nNumber of manual inserts needed: " + str(insert_count) + "." +
+            "\nNumber of backtracks needed: " + str(backtrack_count) + ".",
+            'italic')
+        say("\n----------------------------------------")
+
+        # Reset global variables so that user can solve new puzzles.
+        reset_globals()
+
+        return True
 
 
 # Iterates the algorithm in a loop until puzzle is solved or declared unsolvable.
@@ -821,22 +826,20 @@ def help_text():
     text = "Hello!\n\nNice of you to try my Sudoku solver!\n\n" + \
            "This program was written by Timo Brønseth in December 2019, " \
            "as a project for learning how to write Python (hence the bad " \
-           "code!). He did not manage to finish it before Jul, so it's " \
-           "probably going to stay incomplete.\n\n" \
+           "code!).\n\n" \
            "It currently features:\n\n" \
            " • An algorithm for solving all possible Sudoku puzzles, " \
-           "using a combination of possibility elimination and brute " \
-           "force search when necessary (rarely).\n\n" \
+           "using a combination of possibility elimination and brute-" \
+           "force search with backtrack when necessary.\n\n" \
            "'ITERATE' goes through the solving algorithm one step at a" \
            " time, and 'SOLVE' loops over it.\n\n" \
            " • 'CHECK' searches for conflicts on the board and colours " \
            "them red.\n\n" \
+           " • 'EASY PUZZLE' and the other buttons presents you with puzzles" \
+           " of varying difficulty.\n\n" \
            " • You can edit the board by inserting your own digits. (Fun " \
            "tip: try to hit 'SOLVE' with an empty board and then edit " \
            "the empty cells to see if you can break the algorithm!)\n\n" \
-           " • The algorithm behind the buttons to generate new puzzles " \
-           "is still under construction. Sorry for any " \
-           "inconvenience this may cause.\n\n" \
            "GitHub link:" \
            "https://github.com/timo-bronseth/Timo-s-Eccentric-Sudoku-Solver\n\n"
 
