@@ -11,10 +11,11 @@
 # Timo Brønseth, December 2019
 # -------------------------------------------------------------------------------------
 from math import floor
-from random import randint, choice, sample
+from random import randint, choice
+from ast import literal_eval
 
 from tkinter.scrolledtext import ScrolledText
-from tkinter import Tk, Button, Canvas, Entry, Label
+from tkinter import Tk, Button, Canvas, Entry, simpledialog, OptionMenu, Toplevel
 from tkinter import RAISED, W, E, N, NW, WORD, StringVar, END
 
 # DONE: Make it be 9x9.
@@ -36,8 +37,6 @@ from tkinter import RAISED, W, E, N, NW, WORD, StringVar, END
 # DONE: BUG - If solver finds a conflict on the iteration that fills the board
 #       completely, it interprets the board as solved, rather than backtracking
 #       find a solution without conflict. (easy)
-# TODO: Allow user to change animation speed via the GUI.
-# TODO: Allow user to return to last generated puzzle at any time.
 # TODO: Allow user to SAVE board.
 # TODO: CLEAN UP YOUR UTTERLY ABHORRENT CODE.
 
@@ -66,12 +65,6 @@ def iterate_algorithm():
 
     # Check for integers entered into cells by user.
     check_user_input()
-
-    # Check if board is already full.
-    # if len([i for i in working_board if isinstance(i, int) and i > 0]) == 81:
-    #     print("\nCould not iterate. Board already solved.")
-    #     say("\nCould not iterate. Board already solved.")
-    #     return True
 
     # Prepare for iteration
     iteration_count += 1
@@ -561,7 +554,6 @@ def possibility_eliminator(working_board, output_board, slow_mode=True):
 
         #  If conflicts have been found, then return as appropriate.
         if conflicts and len(manual_inserts) == 0:
-            print("UNSOLVABLE!")
             return "unsolvable"
         elif conflicts:
             return "conflicts"
@@ -628,17 +620,143 @@ def brute_force_backtrack(board, manual_inserts, board_snapshots):
 
 
 # -------------------------------------------------------------------------------------
+# Save and load board
+# -------------------------------------------------------------------------------------
+
+def save_board():
+    global working_board
+
+    board_name = simpledialog.askstring("Input", "Name your board", parent=window)
+
+    if board_name is None or board_name == "":
+        say("Board not saved. No name given.")
+
+    else:
+        with open('sudoku_boards.txt', 'a+') as file:
+            file.seek(0)  # Sets the stream to top of file
+            txt = file.read()  # Stores all data in txt variable
+            file.truncate(0)  # Deletes all data in file
+
+            if not txt:  # Check if file already contains entries
+                board_dict = {board_name: working_board}  # Create dict with initial values
+            else:
+                # Use ast.literal_eval() to convert string to dictionary.
+                board_dict = literal_eval(txt)
+                board_dict[board_name] = working_board
+
+            # Save as a string representation of a dictionary
+            file.write(str(board_dict))
+            # file.write("\'{}\': \'{}\'".format(board_name, str(working_board)))
+        say("\n\nBoard state saved to \"sudoku_boards.txt\"")
+
+
+def load_board():
+    global working_board, output_board
+
+    # Load all the saved boards in the file into working memory,
+    # so that the app can access them.
+    board_dict = load_board_dict()
+
+    # Exit if empty board_dict
+    if not board_dict:
+        return
+
+    # Toplevel() works like a Tk() window, except with some new functions like grab_set()
+    popup_window = Toplevel()
+
+    # The .grab_set() method freezes all events except the ones in popup_window.
+    # (I.e. you can't interact with the main window before you've closed the popup window.)
+    popup_window.grab_set()
+
+    def _load_board_choice():
+        load_board_choice(board_dict, board_key.get())  # board_key is a StringVar datatype
+        popup_window.destroy()
+
+    def _delete_board_choice():
+        delete_board_choice(board_dict, board_key.get())
+        popup_window.destroy()
+
+    board_key = StringVar()  # Initialize it as StringVar() for tkinter display purposes
+    boards = OptionMenu(popup_window,
+                        board_key,
+                        *board_dict.keys())
+    boards.config(width=24,
+                  height=1,
+                  font=("Arial black", 8),
+                  borderwidt=3,
+                  relief=RAISED)
+    boards.grid(row=0, column=0, columnspan=2, pady=1, sticky=N)
+
+    button_load2 = Button(popup_window,
+                          text="LOAD",
+                          width=12,
+                          height=1,
+                          font=("Arial black", 8),
+                          borderwidth=3,
+                          relief=RAISED,
+                          command=_load_board_choice)
+    button_load2.grid(row=1, column=0, columnspan=1, pady=1, sticky=W)
+
+    button_delete = Button(popup_window,
+                           text="DELETE",
+                           width=12,
+                           height=1,
+                           font=("Arial black", 8),
+                           borderwidth=3,
+                           relief=RAISED,
+                           command=_delete_board_choice)
+    button_delete.grid(row=1, column=1, columnspan=1, pady=1, sticky=E)
+
+    # You apparently don't need this here. Idk why.
+    # popup_window.mainloop()
+
+
+def load_board_dict():
+
+    try:
+        # Load saved boards from file and convert to list.
+        with open('sudoku_boards.txt', 'r') as file:
+            txt = file.read()
+            # Convert board_dict from string to dictionary using ast.literal_eval()
+            board_dict = literal_eval(txt) if txt else {}
+            if board_dict:
+                return board_dict
+            else:
+                say("\nNo saved boards in file 'sudoku_boards.txt'.")
+                return
+    except FileNotFoundError:
+        say("\nNo saved boards in file 'sudoku_boards.txt'.")
+
+
+def load_board_choice(board_dict, board_key):
+    global working_board, output_board
+
+    clear_board()
+    working_board = board_dict[board_key]
+
+    # Then display it on the GUI
+    format_board(working_board)
+    update_output_board(working_board, output_board)
+    say("\"{}\" loaded.".format(board_key))
+
+
+def delete_board_choice(board_dict, board_key):
+
+    # Delete the key/value pair pointed to by board_key
+    del board_dict[board_key]
+
+    # Save board_dict to sudoku_boards.txt
+    with open('sudoku_boards.txt', 'w') as file:
+        file.write(str(board_dict))
+
+
+# -------------------------------------------------------------------------------------
 # Generate puzzles
 # -------------------------------------------------------------------------------------
+
+
 def generate_puzzle(num_givens: int):
     global working_board, output_board, cells
-
-    # TODO: Hide the board from user while it is generating a puzzle.
-
-    # Check if num_givens falls inside valid range, and raise ValueError if not
-    # valid_num_givens = range(8, 81)
-    # if num_givens not in valid_num_givens:
-    #     raise ValueError("num_givens was outside the range of valid_num_givens")
 
     # Clear board
     clear_board()
@@ -734,8 +852,6 @@ def format_board(board):
     # function. If board==working_board, then when I clear() working_board, I also clear() board,
     # which means that enumerate(board) below is also empty.
 
-    # TODO: Check out how to do '{}'.format() method
-
     working_board.clear()
     working_board.extend(
         [int(value) if value in [1, 2, 3, 4, 5, 6, 7, 8, 9, '1', '2', '3', '4', '5', '6', '7', '8', '9']
@@ -802,6 +918,8 @@ def print_iteration_line(count):
         say("\n--------------Iteration " + str(count) + "--------------")
     elif 999 >= count >= 100:
         say("\n--------------Iteration " + str(count) + "-------------")
+    elif count >= 1000:
+        say("\n--------------Iteration " + str(count) + "------------")
 
 
 # Display text into the textbox.
@@ -832,14 +950,12 @@ def help_text():
            "using a combination of possibility elimination and brute-" \
            "force search with backtrack when necessary.\n\n" \
            "'ITERATE' goes through the solving algorithm one step at a" \
-           " time, and 'SOLVE' loops over it.\n\n" \
+           " time, and 'SOLVE' loops over it until solved.\n\n" \
            " • 'CHECK' searches for conflicts on the board and colours " \
            "them red.\n\n" \
-           " • 'EASY PUZZLE' and the other buttons presents you with puzzles" \
-           " of varying difficulty.\n\n" \
            " • You can edit the board by inserting your own digits. (Fun " \
            "tip: try to hit 'SOLVE' with an empty board and then edit " \
-           "the empty cells to see if you can break the algorithm!)\n\n" \
+           "the empty cells during runtime to see if you can break the algorithm!)\n\n" \
            "GitHub link:" \
            "https://github.com/timo-bronseth/Timo-s-Eccentric-Sudoku-Solver\n\n"
 
@@ -942,7 +1058,6 @@ if __name__ == "__main__":
                                 command=check_board)
     button_check_board.grid(row=2, column=0, rowspan=3, padx=7, pady=2)
 
-    # Button for trying determinate_board
     button_easy_board = Button(window,
                                text="Easy Puzzle",
                                width=17,
@@ -950,23 +1065,21 @@ if __name__ == "__main__":
                                borderwidth=2,
                                relief=RAISED,
                                #command=lambda: say("\nThis functionality has not been implemented yet."))
-                               command=lambda: generate_puzzle(29)) # 29 givens for easy puzzle.
-                                # If I just write "command=generate_puzzle(29)" here, it runs when first
+                               command=lambda: generate_puzzle(39)) # 39 givens for easy puzzle.
+                                # If I just write "command=generate_puzzle(39)" here, it runs when first
                                 # opening the program. If I wrap it in a lambda expression, it only runs
                                 # when I click the button.
     button_easy_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=W)
 
-    # Button for trying indeterminate_board
     button_medium_board = Button(window,
                                  text="Medium Puzzle",
                                  width=17,
                                  font=("Arial black", 10),
                                  borderwidth=2,
                                  relief=RAISED,
-                                 command=lambda: generate_puzzle(23))
+                                 command=lambda: generate_puzzle(29))
     button_medium_board.grid(row=13, column=1, columnspan=12, pady=5)
 
-    # Button for trying maximum_entropy_board
     button_hard_board = Button(window,
                                text="Hard Puzzle",
                                width=17,
@@ -976,13 +1089,33 @@ if __name__ == "__main__":
                                command=lambda: generate_puzzle(17))
     button_hard_board.grid(row=13, column=1, columnspan=12, pady=5, sticky=E)
 
+    button_save = Button(window,
+                         text="SAVE",
+                         width=24,
+                         height=1,
+                         font=("Arial black", 10),
+                         borderwidth=3,
+                         relief=RAISED,
+                         command=save_board)
+    button_save.grid(row=14, column=1, columnspan=12, pady=5, sticky=W)
+
+    button_load = Button(window,
+                         text="LOAD",
+                         width=24,
+                         height=1,
+                         font=("Arial black", 10),
+                         borderwidth=3,
+                         relief=RAISED,
+                         command=load_board)
+    button_load.grid(row=14, column=1, columnspan=12, pady=5, sticky=E)
+
     # Infobox
-    info = "These buttons generate random boards with 17, 23 or 29 givens.\n" + \
-           "Timo Brønseth, December 2019."
-    infobox = Label(window,
-                    text=info,
-                    font='Courier 10 italic')
-    infobox.grid(row=14, column=2, columnspan=13, sticky=NW)
+    # info = "These buttons generate random boards with 17, 23 or 29 givens.\n" + \
+    #        "Timo Brønseth, December 2019."
+    # infobox = Label(window,
+    #                 text=info,
+    #                 font='Courier 10 italic')
+    # infobox.grid(row=14, column=2, columnspan=13, sticky=NW)
 
     #  Console
     textbox = ScrolledText(window,
