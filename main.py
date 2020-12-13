@@ -1,12 +1,11 @@
 # -------------------------------------------------------------------------------------
 # The goal I had in mind for this code was to minimise the need for brute force search.
 # For that, I use two main algorithms:
-#    1) "possibility_eliminator()" for solving almost all determinate puzzles quickly,
-#    2) and brute search for indeterminate puzzles.
+#    1) "possibility_eliminator()" uses "logic" to find out what must go where,
+#    2) and "brute_force_backtrack()" just tries digits and goes back if they don't work.
 #
 # I made this while learning Python from scratch, which should be evident from my utterly
-# abhorrent code. I haven't had time to tidy it up yet, and due to Yule vacation
-# approaching, I didn't have time to code the last bits proper either. But it works!
+# abhorrent code.
 #
 # Timo Brønseth, December 2019
 # -------------------------------------------------------------------------------------
@@ -16,7 +15,7 @@ from ast import literal_eval
 
 from tkinter.scrolledtext import ScrolledText
 from tkinter import Tk, Button, Canvas, Entry, simpledialog, OptionMenu, Toplevel
-from tkinter import RAISED, W, E, N, NW, WORD, StringVar, END
+from tkinter import RAISED, W, E, N, WORD, StringVar, END
 
 # DONE: Make it be 9x9.
 # DONE: Center the digits in the cells.
